@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ethers } from 'ethers';
-import { createFlexMiddleware } from '../src/index';
+import { createFlexMiddleware, createFlexExpressMiddleware } from '../src/index';
 import { PaymentRegistry__factory } from '@bnbpay/sdk';
 
 class StubProvider {
@@ -19,6 +19,10 @@ class StubProvider {
     return this.blockNumber;
   }
 }
+
+const MERCHANT = '0x000000000000000000000000000000000000dEaD';
+const REGISTRY_ADDRESS = '0x000000000000000000000000000000000000f00d';
+const ROUTER_ADDRESS = '0x000000000000000000000000000000000000cafe';
 
 describe('@bnbpay/x402flex', () => {
   it('builds responses with defaults and verifies settlements', async () => {
@@ -101,5 +105,47 @@ describe('@bnbpay/x402flex', () => {
     expect(settlement.success).toBe(true);
     expect(settlement.paymentId).toEqual(intent.paymentId);
     expect(settlement.proof.confirmations).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('createFlexExpressMiddleware', () => {
+  it('responds with 402 when authorization missing and calls next on success', async () => {
+    const flex = createFlexMiddleware({
+      merchant: MERCHANT,
+      networks: {
+        opbnb: {
+          provider: new StubProvider(100) as unknown as ethers.Provider,
+          registry: REGISTRY_ADDRESS,
+          router: ROUTER_ADDRESS,
+          chainId: 204,
+          confirmations: 1,
+        },
+      },
+    });
+
+    const handler = createFlexExpressMiddleware(flex, {
+      '/api/demo': {
+        buildResponse: () => ({
+          accepts: [
+            { scheme: 'push:evm:direct', network: 'opbnb', amount: '1000', asset: 'native' },
+          ],
+        }),
+      },
+    });
+
+    const req: any = { path: '/api/demo', headers: {} };
+    const res: any = {
+      statusCode: 200,
+      body: null,
+      headers: {},
+      status(code: number) { this.statusCode = code; return this; },
+      json(payload: any) { this.body = payload; return this; },
+      set(key: string, value: string) { this.headers[key] = value; }
+    };
+    let nextCalled = false;
+
+    await handler(req, res, () => { nextCalled = true; });
+    expect(res.statusCode).toEqual(402);
+    expect(nextCalled).toEqual(false);
   });
 });

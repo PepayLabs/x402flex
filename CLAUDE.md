@@ -18,3 +18,4 @@
 
 ## Documentation Hooks
 - Any change here requires README + relevant docs (`docs/402PAY_INTEGRATION.md`, root `README.md`) updates so narrative stays aligned.
+- Express/Koa helper samples (`createFlexExpressMiddleware`) should remain consistent with `docs/402PAY_INTEGRATION.md` and the merchant server example.

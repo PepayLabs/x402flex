@@ -249,6 +249,8 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
   };
 }
 
+export { createFlexExpressMiddleware } from './express.js';
+
 function normalizeNetworks(networks: Record<string, FlexNetworkConfig>): Record<string, NormalizedNetworkConfig> {
   return Object.entries(networks).reduce<Record<string, NormalizedNetworkConfig>>((acc, [key, cfg]) => {
     const provider = typeof cfg.provider === 'string'

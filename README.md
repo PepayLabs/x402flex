@@ -12,7 +12,7 @@ npm install @bnbpay/x402flex @bnbpay/sdk ethers
 
 ```ts
 import { ethers } from 'ethers';
-import { createFlexMiddleware } from '@bnbpay/x402flex';
+import { createFlexMiddleware, createFlexExpressMiddleware } from '@bnbpay/x402flex';
 
 const middleware = createFlexMiddleware({
   merchant: process.env.MERCHANT_ADDRESS!,
@@ -31,6 +31,17 @@ const middleware = createFlexMiddleware({
       chainId: 56,
       confirmations: 3,
     },
+  },
+});
+// Express/Koa-style middleware
+export const flexHandler = createFlexExpressMiddleware(middleware, {
+  '/api/generate': {
+    buildResponse: () => ({
+      accepts: [
+        { scheme: 'exact:evm:permit2', network: 'opbnb', chainId: 204, amount: '1000000', asset: tokens.USDT },
+        { scheme: 'push:evm:direct', network: 'bnb', chainId: 56, amount: '2000000000000000', asset: 'native' },
+      ],
+    }),
   },
 });
 ```
@@ -58,6 +69,7 @@ Returned `settlement` includes `success`, `paymentId`, `schemeId`, `resourceId`,
 - `createFlexMiddleware(context)` → `{ buildFlexResponse, settleWithRouter, parseAuthorization }`
 - `context.networks` entries accept either `ethers.Provider` or RPC URLs plus registry/router addresses.
 - `settleWithRouter` parses the authorization header, fetches the transaction receipt, enforces confirmations, and decodes `PaymentSettledV2` logs to prove the payment.
+- `createFlexExpressMiddleware(flex, routes)` returns an Express-compatible handler that automatically serves 402 responses and verifies settlements before calling `next()`.
 
 ## Testing
 
