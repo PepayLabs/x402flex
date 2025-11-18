@@ -72,10 +72,29 @@ if (settlement.session?.hasSessionTag) {
 
 ## API
 
-- `createFlexMiddleware(context)` → `{ buildFlexResponse, settleWithRouter, parseAuthorization }`
+- `createFlexMiddleware(context)` → `{ buildFlexResponse, settleWithRouter, parseAuthorization, buildSessionContext, auditSessionReceipts }`
 - `context.networks` entries accept either `ethers.Provider` or RPC URLs plus registry/router addresses.
 - `settleWithRouter` parses the authorization header, fetches the transaction receipt, enforces confirmations, and decodes `PaymentSettledV2` logs to prove the payment.
 - `createFlexExpressMiddleware(flex, routes)` returns an Express-compatible handler that automatically serves 402 responses and verifies settlements before calling `next()`.
+- `buildSessionContext(input, { defaultAgent })` wraps `@bnbpay/sdk`’s helper so middleware callers can normalize `{ sessionId, scope?, usdDebit? }` before hitting router session entry points.
+- `auditSessionReceipts(events, sessionId)` is re-exported so you can reconcile entire sessions (by replaying decoded `PaymentSettledV2` logs) without reaching for the SDK directly.
+
+### SessionGuard usage
+
+```ts
+const ctx = middleware.buildSessionContext({
+  sessionId,
+  scope: merchantScopeHash,
+  usdDebit: '2500000',
+}, { defaultAgent: agentAddress });
+
+await router.depositAndSettleTokenSession(intent, witness, '0x', ctx, referenceWithTags);
+
+const logs = await provider.getLogs(filter);
+const events = logs.map(decodePaymentSettledEvent);
+const summary = middleware.auditSessionReceipts(events, sessionId);
+console.log('session total', summary.totalAmount.toString());
+```
 
 ## Testing
 

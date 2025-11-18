@@ -9,6 +9,8 @@ import {
   PaymentRegistry__factory,
   buildFlexResponse as sdkBuildFlexResponse,
   decodePaymentSettledEvent,
+  buildSessionContext as sdkBuildSessionContext,
+  auditSessionReceipts,
 } from '@bnbpay/sdk';
 
 const PAYMENT_REGISTRY_INTERFACE = PaymentRegistry__factory.createInterface();
@@ -54,6 +56,8 @@ export interface FlexMiddlewareHelpers {
   buildFlexResponse: (input: FlexResponseInput) => FlexResponse;
   settleWithRouter: (params: SettleWithRouterParams) => Promise<FlexSettlementResult>;
   parseAuthorization: (auth: string | FlexAuthorization) => FlexAuthorization;
+  buildSessionContext: typeof sdkBuildSessionContext;
+  auditSessionReceipts: typeof auditSessionReceipts;
 }
 
 export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddlewareHelpers {
@@ -252,6 +256,8 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
       return _settleWithRouter({ ...params, authorization: parsed });
     },
     parseAuthorization,
+    buildSessionContext: sdkBuildSessionContext,
+    auditSessionReceipts,
   };
 }
 
