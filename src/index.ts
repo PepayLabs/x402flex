@@ -6,9 +6,10 @@ import {
   FlexResponseInput,
   FlexSettlementResult,
   PAYMENT_REGISTRY_ABI,
+  PaymentRegistry__factory,
   buildFlexResponse as sdkBuildFlexResponse,
+  decodePaymentSettledEvent,
 } from '@bnbpay/sdk';
-import { PaymentRegistry__factory } from '@bnbpay/sdk';
 
 const PAYMENT_REGISTRY_INTERFACE = PaymentRegistry__factory.createInterface();
 const PAYMENT_SETTLED_TOPIC = PAYMENT_REGISTRY_INTERFACE.getEvent('PaymentSettledV2').topicHash;
@@ -174,11 +175,12 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
       };
     }
 
-    const decoded = PAYMENT_REGISTRY_INTERFACE.decodeEventLog(
-      'PaymentSettledV2',
-      eventLog.data,
-      eventLog.topics
-    );
+    const decoded = decodePaymentSettledEvent({
+      data: eventLog.data,
+      topics: eventLog.topics,
+      blockNumber: receipt.blockNumber,
+      transactionHash: authorization.txHash,
+    });
 
     if (params.paymentIntent && decoded.paymentId !== params.paymentIntent.paymentId) {
       return {
@@ -201,6 +203,8 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
       paymentId: decoded.paymentId,
       schemeId: decoded.schemeId,
       resourceId: decoded.resourceId,
+      reference: decoded.referenceData,
+      session: decoded.session,
       proof: {
         txHash: authorization.txHash,
         network: networkKey,
@@ -209,6 +213,8 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
         paymentId: decoded.paymentId,
         schemeId: decoded.schemeId,
         resourceId: decoded.resourceId,
+        reference: decoded.referenceData,
+        session: decoded.session,
         merchant: decoded.merchant,
         payer: decoded.payer,
         token: decoded.token,

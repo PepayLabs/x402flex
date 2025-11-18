@@ -64,6 +64,8 @@ describe('@bnbpay/x402flex', () => {
     const payer = '0x000000000000000000000000000000000000face';
     const token = ethers.ZeroAddress;
     const fee = 0n;
+    const sessionId = ethers.hexlify(ethers.randomBytes(32));
+    const referenceData = `${option.reference}|session:${sessionId}|resource:${intent.resourceId}`;
     const logData = iface.encodeEventLog('PaymentSettledV2', [
       intent.paymentId,
       payer,
@@ -72,7 +74,7 @@ describe('@bnbpay/x402flex', () => {
       BigInt(intent.amount),
       fee,
       option.schemeId,
-      option.reference,
+      referenceData,
       intent.resourceId,
       BigInt(Math.floor(Date.now() / 1000)),
     ]);
@@ -105,6 +107,9 @@ describe('@bnbpay/x402flex', () => {
     expect(settlement.success).toBe(true);
     expect(settlement.paymentId).toEqual(intent.paymentId);
     expect(settlement.proof.confirmations).toBeGreaterThanOrEqual(1);
+    expect(settlement.reference).toEqual(referenceData);
+    expect(settlement.session?.sessionId).toEqual(sessionId);
+    expect(settlement.proof.reference).toEqual(referenceData);
   });
 });
 

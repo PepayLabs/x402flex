@@ -62,7 +62,13 @@ const settlement = await middleware.settleWithRouter({
 });
 ```
 
-Returned `settlement` includes `success`, `paymentId`, `schemeId`, `resourceId`, and a proof object with tx hash + confirmations so you can emit entitlements.
+Returned `settlement` includes `success`, `paymentId`, `schemeId`, `resourceId`, and a proof object with tx hash + confirmations so you can emit entitlements. SessionGuard telemetry (`reference`, `sessionId`, `baseReference`) is preserved on both `settlement` and `settlement.proof`.
+
+```ts
+if (settlement.session?.hasSessionTag) {
+  console.log('Session', settlement.session.sessionId, 'base reference', settlement.session.baseReference);
+}
+```
 
 ## API
 
