@@ -111,6 +111,46 @@ describe('@bnbpay/x402flex', () => {
     expect(settlement.session?.sessionId).toEqual(sessionId);
     expect(settlement.proof.reference).toEqual(referenceData);
   });
+
+  it('attaches session metadata and tags references', () => {
+    const merchant = '0x000000000000000000000000000000000000beef';
+    const registry = '0x000000000000000000000000000000000000c0de';
+    const router = '0x000000000000000000000000000000000000c0fe';
+
+    const middleware = createFlexMiddleware({
+      merchant,
+      networks: {
+        opbnb: {
+          provider: new StubProvider(100) as unknown as ethers.Provider,
+          registry,
+          router,
+          chainId: 204,
+          confirmations: 1,
+        },
+      },
+    });
+
+    const response = middleware.buildFlexResponse({
+      accepts: [
+        {
+          scheme: 'push:evm:direct',
+          network: 'opbnb',
+          amount: '1000',
+          asset: 'native',
+        },
+      ],
+    });
+
+    const sessionId = ethers.hexlify(ethers.randomBytes(32));
+    const scoped = middleware.attachSessionToResponse(response, {
+      sessionId,
+      scope: ethers.hexlify(ethers.randomBytes(32)),
+    });
+
+    const option = scoped.accepts[0];
+    expect(option.reference).toMatch(/\|session:/);
+    expect(option.metadata?.session?.sessionId).toBeDefined();
+  });
 });
 
 describe('createFlexExpressMiddleware', () => {

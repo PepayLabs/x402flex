@@ -55,6 +55,14 @@ const requirements = middleware.buildFlexResponse({
   ],
 });
 
+const sessionReady = middleware.attachSessionToResponse(requirements, {
+  sessionId: '0xabc...def',
+  scope: merchantScopeHash,
+  usdDebit: '1000000',
+});
+
+// Each accept now carries metadata.session + tagged reference strings
+
 // Verify settlement when client retries with X-Payment-Authorization
 const settlement = await middleware.settleWithRouter({
   authorization: req.headers['x-payment-authorization'],
@@ -72,28 +80,44 @@ if (settlement.session?.hasSessionTag) {
 
 ## API
 
-- `createFlexMiddleware(context)` → `{ buildFlexResponse, settleWithRouter, parseAuthorization, buildSessionContext, auditSessionReceipts }`
+- `createFlexMiddleware(context)` → `{ buildFlexResponse, settleWithRouter, parseAuthorization, buildSessionContext, auditSessionReceipts, attachSessionToResponse }`
 - `context.networks` entries accept either `ethers.Provider` or RPC URLs plus registry/router addresses.
 - `settleWithRouter` parses the authorization header, fetches the transaction receipt, enforces confirmations, and decodes `PaymentSettledV2` logs to prove the payment.
 - `createFlexExpressMiddleware(flex, routes)` returns an Express-compatible handler that automatically serves 402 responses and verifies settlements before calling `next()`.
 - `buildSessionContext(input, { defaultAgent })` wraps `@bnbpay/sdk`’s helper so middleware callers can normalize `{ sessionId, scope?, usdDebit? }` before hitting router session entry points.
 - `auditSessionReceipts(events, sessionId)` is re-exported so you can reconcile entire sessions (by replaying decoded `PaymentSettledV2` logs) without reaching for the SDK directly.
+- `attachSessionToResponse(response, session)` rewrites every accept’s `reference` string with the `|session:...|resource:...` suffix (using the router intent’s resourceId) and stores the normalized session metadata under `accept.metadata.session` so clients know which SessionGuard context to apply.
 
 ### SessionGuard usage
 
 ```ts
-const ctx = middleware.buildSessionContext({
-  sessionId,
-  scope: merchantScopeHash,
-  usdDebit: '2500000',
-}, { defaultAgent: agentAddress });
-
-await router.depositAndSettleTokenSession(intent, witness, '0x', ctx, referenceWithTags);
+const ctx = middleware.buildSessionContext({ sessionId, scope: merchantScopeHash }, { defaultAgent: agentAddress });
+const sessionized = middleware.attachSessionToResponse(requirements, { sessionId, scope: merchantScopeHash });
+await router.depositAndSettleTokenSession(intent, witness, '0x', ctx, sessionized.accepts[0].reference);
 
 const logs = await provider.getLogs(filter);
 const events = logs.map(decodePaymentSettledEvent);
 const summary = middleware.auditSessionReceipts(events, sessionId);
 console.log('session total', summary.totalAmount.toString());
+```
+
+Hook into `onAuthorized` if you want to persist receipts:
+
+```ts
+createFlexExpressMiddleware(middleware, {
+  '/api/resource': {
+    buildResponse: () => requirements,
+    onAuthorized: async (_req, settlement) => {
+      if (settlement.session?.sessionId) {
+        await db.sessions.upsert({
+          sessionId: settlement.session.sessionId,
+          paymentId: settlement.paymentId,
+          reference: settlement.reference,
+        });
+      }
+    },
+  },
+});
 ```
 
 ## Testing

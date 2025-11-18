@@ -11,6 +11,8 @@ import {
   decodePaymentSettledEvent,
   buildSessionContext as sdkBuildSessionContext,
   auditSessionReceipts,
+  formatSessionReference,
+  type SessionContextInput,
 } from '@bnbpay/sdk';
 
 const PAYMENT_REGISTRY_INTERFACE = PaymentRegistry__factory.createInterface();
@@ -58,6 +60,11 @@ export interface FlexMiddlewareHelpers {
   parseAuthorization: (auth: string | FlexAuthorization) => FlexAuthorization;
   buildSessionContext: typeof sdkBuildSessionContext;
   auditSessionReceipts: typeof auditSessionReceipts;
+  attachSessionToResponse: (
+    response: FlexResponse,
+    session: SessionContextInput,
+    options?: { defaultAgent?: string; autoTagReference?: boolean }
+  ) => FlexResponse;
 }
 
 export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddlewareHelpers {
@@ -258,6 +265,11 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
     parseAuthorization,
     buildSessionContext: sdkBuildSessionContext,
     auditSessionReceipts,
+    attachSessionToResponse: (
+      response: FlexResponse,
+      sessionInput: SessionContextInput,
+      options?: { defaultAgent?: string; autoTagReference?: boolean }
+    ) => attachSessionToResponse(response, sessionInput, options),
   };
 }
 
@@ -277,4 +289,40 @@ function normalizeNetworks(networks: Record<string, FlexNetworkConfig>): Record<
     };
     return acc;
   }, {});
+}
+
+function attachSessionToResponse(
+  response: FlexResponse,
+  sessionInput: SessionContextInput,
+  options?: { defaultAgent?: string; autoTagReference?: boolean }
+): FlexResponse {
+  const sessionCtx = sdkBuildSessionContext(sessionInput, { defaultAgent: options?.defaultAgent });
+  const autoTag = options?.autoTagReference ?? true;
+
+  const accepts = response.accepts.map((option) => {
+    let reference = option.reference;
+    if (autoTag && option.router?.intent?.resourceId) {
+      reference = formatSessionReference(reference, sessionCtx.sessionId, option.router.intent.resourceId);
+    }
+
+    const metadata = {
+      ...option.metadata,
+      session: {
+        sessionId: sessionCtx.sessionId,
+        scope: sessionCtx.scope,
+        usdDebit: sessionCtx.usdDebit.toString(),
+      },
+    };
+
+    return {
+      ...option,
+      reference,
+      metadata,
+    };
+  });
+
+  return {
+    ...response,
+    accepts,
+  };
 }
