@@ -57,8 +57,6 @@ const requirements = middleware.buildFlexResponse({
 
 const sessionReady = middleware.attachSessionToResponse(requirements, {
   sessionId: '0xabc...def',
-  scope: merchantScopeHash,
-  usdDebit: '1000000',
 });
 
 // Each accept now carries metadata.session + tagged reference strings
@@ -84,7 +82,7 @@ if (settlement.session?.hasSessionTag) {
 - `context.networks` entries accept either `ethers.Provider` or RPC URLs plus registry/router addresses.
 - `settleWithRouter` parses the authorization header, fetches the transaction receipt, enforces confirmations, and decodes `PaymentSettledV2` logs to prove the payment.
 - `createFlexExpressMiddleware(flex, routes)` returns an Express-compatible handler that automatically serves 402 responses and verifies settlements before calling `next()`.
-- `buildSessionContext(input, { defaultAgent })` wraps `@bnbpay/sdk`’s helper so middleware callers can normalize `{ sessionId, scope?, usdDebit? }` before hitting router session entry points.
+- `buildSessionContext(input, { defaultAgent })` wraps `@bnbpay/sdk`’s helper so middleware callers can normalize `{ sessionId, agent? }` before hitting router session entry points.
 - `auditSessionReceipts(events, sessionId)` is re-exported so you can reconcile entire sessions (by replaying decoded `PaymentSettledV2` logs) without reaching for the SDK directly.
 - `attachSessionToResponse(response, session)` rewrites every accept’s `reference` string with the `|session:...|resource:...` suffix (using the router intent’s resourceId) and stores the normalized session metadata under `accept.metadata.session` so clients know which SessionGuard context to apply.
 

@@ -309,8 +309,7 @@ function attachSessionToResponse(
       ...option.metadata,
       session: {
         sessionId: sessionCtx.sessionId,
-        scope: sessionCtx.scope,
-        usdDebit: sessionCtx.usdDebit.toString(),
+        agent: sessionCtx.agent,
       },
     };
 

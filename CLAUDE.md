@@ -10,7 +10,7 @@
 - Require explicit network configuration (provider, registry, router, confirmations). Never assume defaults beyond basic RPC parsing.
 - Enforce deterministic references/identifiers by normalizing `referenceId` inputs via the SDK utilities.
 - Verification must parse `PaymentSettledV2` events and confirm confirmations ≥ configured thresholds. Never trust raw signatures alone.
-- Preserve SessionGuard telemetry: expose `reference` + `session` details from `@bnbpay/sdk.decodePaymentSettledEvent` so downstream middleware can tag dashboards and entitlements.
+- Preserve SessionGuard telemetry: expose `reference` + `session` details from `@bnbpay/sdk.decodePaymentSettledEvent` so downstream middleware can tag dashboards and entitlements. Session contexts now only carry `{sessionId, agent?}`; removal of `usdDebit`/`scope` must cascade to every middleware response and metadata payload.
 - Keep types exported from `@bnbpay/sdk` in sync; when they change, update this package plus docs referencing it.
 
 ## Testing
