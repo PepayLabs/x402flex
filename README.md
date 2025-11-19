@@ -89,8 +89,8 @@ if (settlement.session?.hasSessionTag) {
 ### SessionGuard usage
 
 ```ts
-const ctx = middleware.buildSessionContext({ sessionId, scope: merchantScopeHash }, { defaultAgent: agentAddress });
-const sessionized = middleware.attachSessionToResponse(requirements, { sessionId, scope: merchantScopeHash });
+const ctx = middleware.buildSessionContext({ sessionId }, { defaultAgent: agentAddress });
+const sessionized = middleware.attachSessionToResponse(requirements, { sessionId });
 await router.depositAndSettleTokenSession(intent, witness, '0x', ctx, sessionized.accepts[0].reference);
 
 const logs = await provider.getLogs(filter);

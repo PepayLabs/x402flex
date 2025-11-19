@@ -144,7 +144,6 @@ describe('@bnbpay/x402flex', () => {
     const sessionId = ethers.hexlify(ethers.randomBytes(32));
     const scoped = middleware.attachSessionToResponse(response, {
       sessionId,
-      scope: ethers.hexlify(ethers.randomBytes(32)),
     });
 
     const option = scoped.accepts[0];
