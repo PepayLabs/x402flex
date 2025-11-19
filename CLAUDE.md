@@ -10,12 +10,12 @@
 - Require explicit network configuration (provider, registry, router, confirmations). Never assume defaults beyond basic RPC parsing.
 - Enforce deterministic references/identifiers by normalizing `referenceId` inputs via the SDK utilities.
 - Verification must parse `PaymentSettledV2` events and confirm confirmations ≥ configured thresholds. Never trust raw signatures alone.
-- Preserve SessionGuard telemetry: expose `reference` + `session` details from `@bnbpay/sdk.decodePaymentSettledEvent` so downstream middleware can tag dashboards and entitlements. Session contexts now only carry `{sessionId, agent?}`; removal of `usdDebit`/`scope` must cascade to every middleware response and metadata payload.
+- Preserve SessionGuard telemetry: expose `reference` + `session` details from `@bnbpay/sdk.decodePaymentSettledEvent` so downstream middleware can tag dashboards and entitlements. Session contexts now only carry `{sessionId, agent?}`; removal of `usdDebit`/`scope` must cascade to every middleware response and metadata payload. When documenting how merchants mint grants, call out that `FlexSessionGrant` now signs `deadline`, `expiresAt`, and monotonic `nonce` fields—TTL durations are gone, and middleware should refuse payloads missing those fields.
 - Keep types exported from `@bnbpay/sdk` in sync; when they change, update this package plus docs referencing it.
 
 ## Testing
 - Unit tests use Vitest with stub providers. Add regression coverage whenever settlement or response logic changes.
-- Reference Foundry shard commands in docs when settlement verification depends on router changes (`FOUNDRY_TEST_TIMEOUT=1800 forge test --match-path test/shards/FlexRouterPush.t.sol -vvv`).
+- Reference Foundry shard commands in docs when settlement verification depends on router changes (`FOUNDRY_TEST_TIMEOUT=1200 forge test --match-path test/router/RouterSessionGuard.t.sol -vvv` and related shards) so contributors remember to run the same targeted suites that protect SessionGuard flows.
 
 ## Documentation Hooks
 - Any change here requires README + relevant docs (`docs/402PAY_INTEGRATION.md`, root `README.md`) updates so narrative stays aligned.
