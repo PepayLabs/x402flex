@@ -18,12 +18,32 @@ import {
 const PAYMENT_REGISTRY_INTERFACE = PaymentRegistry__factory.createInterface();
 const PAYMENT_SETTLED_TOPIC = PAYMENT_REGISTRY_INTERFACE.getEvent('PaymentSettledV2').topicHash;
 
+const SCHEME_REGISTRY: Record<string, { id: string; type: string; sessionCapable: boolean }> = {
+  'exact:evm:permit2': { id: 'exact:evm:permit2', type: 'permit2', sessionCapable: true },
+  'exact:evm:eip2612': { id: 'exact:evm:eip2612', type: 'eip2612', sessionCapable: true },
+  'exact:evm:eip3009': { id: 'exact:evm:eip3009', type: 'eip3009', sessionCapable: true },
+  'push:evm:aa4337': { id: 'push:evm:aa4337', type: 'push', sessionCapable: true },
+  'push:evm:direct': { id: 'push:evm:direct', type: 'push', sessionCapable: true },
+};
+
+export interface RelayConfig {
+  endpoint: string;
+  apiKey?: string;
+  fetchFn?: typeof fetch;
+}
+
+export interface FlexResponseOptions extends FlexResponseInput {
+  session?: SessionContextInput;
+  autoTagReference?: boolean;
+}
+
 export interface FlexNetworkConfig {
   provider: ethers.Provider | string;
   registry: string;
   router?: string;
   chainId?: number;
   confirmations?: number;
+  relay?: RelayConfig;
 }
 
 interface NormalizedNetworkConfig {
@@ -32,6 +52,7 @@ interface NormalizedNetworkConfig {
   router?: string;
   chainId?: number;
   confirmations: number;
+  relay?: RelayConfig;
 }
 
 export interface FlexMiddlewareContext {
@@ -55,7 +76,7 @@ export interface SettleWithRouterParams {
 }
 
 export interface FlexMiddlewareHelpers {
-  buildFlexResponse: (input: FlexResponseInput) => FlexResponse;
+  buildFlexResponse: (input: FlexResponseOptions) => FlexResponse;
   settleWithRouter: (params: SettleWithRouterParams) => Promise<FlexSettlementResult>;
   parseAuthorization: (auth: string | FlexAuthorization) => FlexAuthorization;
   buildSessionContext: typeof sdkBuildSessionContext;
@@ -72,7 +93,7 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
   const networks = normalizeNetworks(context.networks);
   const referenceBuilder = context.referenceBuilder ?? (() => `order_${Date.now()}`);
 
-  function buildFlexResponse(input: FlexResponseInput): FlexResponse {
+  function buildFlexResponse(input: FlexResponseOptions): FlexResponse {
     const acceptsWithDefaults: FlexAcceptInput[] = input.accepts.map((accept) => {
       const networkDefaults = networks[accept.network];
       const payTo = accept.payTo ?? merchant;
@@ -90,20 +111,33 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
           }
         : accept.router;
 
+      const schemeMeta = getSchemeMetadata(accept.scheme);
       return {
         ...accept,
         payTo,
         chainId,
         router,
+        metadata: {
+          ...accept.metadata,
+          scheme: schemeMeta,
+        },
       };
     });
 
-    return sdkBuildFlexResponse({
+    const baseResponse = sdkBuildFlexResponse({
       ...input,
       merchant: input.merchant ?? merchant,
       referenceId: input.referenceId ?? referenceBuilder(),
       accepts: acceptsWithDefaults,
     });
+
+    const enriched = enrichSchemeMetadata(baseResponse);
+    if (input.session) {
+      return attachSessionToResponse(enriched, input.session, {
+        autoTagReference: input.autoTagReference,
+      });
+    }
+    return enriched;
   }
 
   async function _settleWithRouter(
@@ -244,23 +278,35 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
         txHash: parsed.txHash,
         blockNumber: parsed.blockNumber,
         timestamp: parsed.timestamp,
+        relayPayload: parsed.relayPayload,
       } as FlexAuthorization;
     }
     return auth;
   }
 
-  function ensureAuthorizationPayload(auth: FlexAuthorization): FlexAuthorization {
-    if (!auth.network || !auth.txHash) {
-      throw new Error('Authorization payload must include network and txHash');
-    }
-    return auth;
+  function normalizeAuthorization(auth: FlexAuthorization, network: string): FlexAuthorization {
+    return {
+      ...auth,
+      network: auth.network ?? network,
+    };
   }
 
   return {
     buildFlexResponse,
     settleWithRouter: async (params) => {
-      const parsed = ensureAuthorizationPayload(parseAuthorization(params.authorization));
-      return _settleWithRouter({ ...params, authorization: parsed });
+      const parsed = parseAuthorization(params.authorization);
+      const networkKey = params.network ?? parsed.network;
+      if (!networkKey) {
+        throw new Error('Authorization payload must include network');
+      }
+      const network = networks[networkKey];
+      if (!network) {
+        throw new Error(`No network configuration found for ${networkKey}`);
+      }
+
+      const normalizedAuth = normalizeAuthorization(parsed, networkKey);
+      const authWithHash = await ensureAuthorizationTxHash(normalizedAuth, networkKey, network);
+      return _settleWithRouter({ ...params, authorization: authWithHash, network: networkKey });
     },
     parseAuthorization,
     buildSessionContext: sdkBuildSessionContext,
@@ -286,9 +332,67 @@ function normalizeNetworks(networks: Record<string, FlexNetworkConfig>): Record<
       router: cfg.router ? ethers.getAddress(cfg.router) : undefined,
       chainId: cfg.chainId,
       confirmations: cfg.confirmations ?? 1,
+      relay: cfg.relay,
     };
     return acc;
   }, {});
+}
+
+async function ensureAuthorizationTxHash(
+  authorization: FlexAuthorization,
+  networkKey: string,
+  network: NormalizedNetworkConfig
+): Promise<FlexAuthorization> {
+  if (authorization.txHash) {
+    return authorization;
+  }
+
+  if (!network.relay) {
+    throw new Error(
+      `Authorization for network ${networkKey} is missing txHash and no relay configuration is available`
+    );
+  }
+
+  if (!authorization.relayPayload) {
+    throw new Error('Relay payload required when txHash is missing');
+  }
+
+  const relayResponse = await invokeRelay(network.relay, {
+    network: networkKey,
+    payload: authorization.relayPayload,
+  });
+
+  if (!relayResponse.txHash) {
+    throw new Error('Relay did not return a transaction hash');
+  }
+
+  return {
+    ...authorization,
+    txHash: relayResponse.txHash,
+    blockNumber: relayResponse.blockNumber ?? authorization.blockNumber,
+    timestamp: relayResponse.timestamp ?? authorization.timestamp,
+  };
+}
+
+async function invokeRelay(relay: RelayConfig, body: Record<string, unknown>) {
+  const fetchFn = relay.fetchFn ?? (typeof fetch !== 'undefined' ? fetch : undefined);
+  if (!fetchFn) {
+    throw new Error('Relay fetch implementation not available');
+  }
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (relay.apiKey) {
+    headers['x-api-key'] = relay.apiKey;
+  }
+  const response = await fetchFn(relay.endpoint, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Relay request failed (${response.status}): ${text}`);
+  }
+  return response.json();
 }
 
 function attachSessionToResponse(
@@ -324,4 +428,20 @@ function attachSessionToResponse(
     ...response,
     accepts,
   };
+}
+
+function getSchemeMetadata(scheme: string) {
+  const key = scheme.toLowerCase();
+  return SCHEME_REGISTRY[key] ?? { id: scheme, type: 'custom', sessionCapable: true };
+}
+
+function enrichSchemeMetadata(response: FlexResponse): FlexResponse {
+  const accepts = response.accepts.map((option) => ({
+    ...option,
+    metadata: {
+      ...option.metadata,
+      scheme: getSchemeMetadata(option.scheme),
+    },
+  }));
+  return { ...response, accepts };
 }

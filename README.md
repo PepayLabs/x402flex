@@ -23,6 +23,9 @@ const middleware = createFlexMiddleware({
       router: process.env.OPBNB_PAY_ROUTER!,
       chainId: 204,
       confirmations: 1,
+      relay: process.env.RELAY_ENDPOINT
+        ? { endpoint: process.env.RELAY_ENDPOINT!, apiKey: process.env.RELAY_API_KEY }
+        : undefined,
     },
     bnb: {
       provider: new ethers.JsonRpcProvider(process.env.BNB_RPC_URL!),
@@ -49,14 +52,11 @@ export const flexHandler = createFlexExpressMiddleware(middleware, {
 ```ts
 // Build HTTP 402 payload
 const requirements = middleware.buildFlexResponse({
+  session: { sessionId: '0xabc...def' },
   accepts: [
     { scheme: 'exact:evm:permit2', network: 'opbnb', chainId: 204, amount: '1000000', asset: tokens.USDT },
     { scheme: 'push:evm:direct', network: 'bnb', chainId: 56, amount: '2000000000000000', asset: 'native' },
   ],
-});
-
-const sessionReady = middleware.attachSessionToResponse(requirements, {
-  sessionId: '0xabc...def',
 });
 
 // Each accept now carries metadata.session + tagged reference strings
@@ -70,6 +70,8 @@ const settlement = await middleware.settleWithRouter({
 
 Returned `settlement` includes `success`, `paymentId`, `schemeId`, `resourceId`, and a proof object with tx hash + confirmations so you can emit entitlements. SessionGuard telemetry (`reference`, `sessionId`, `baseReference`) is preserved on both `settlement` and `settlement.proof`.
 
+When a client sends a gasless payload (no `txHash`) in `X-PAYMENT-AUTHORIZATION` and the network configuration supplies a `relay`, the middleware automatically forwards the payload to that relay endpoint, receives the resulting `txHash`, and then performs the standard on-chain verification. No extra code is required—just include the relay configuration in `createFlexMiddleware`.
+
 ```ts
 if (settlement.session?.hasSessionTag) {
   console.log('Session', settlement.session.sessionId, 'base reference', settlement.session.baseReference);
@@ -81,8 +83,10 @@ if (settlement.session?.hasSessionTag) {
 ## API
 
 - `createFlexMiddleware(context)` → `{ buildFlexResponse, settleWithRouter, parseAuthorization, buildSessionContext, auditSessionReceipts, attachSessionToResponse }`
+- `buildFlexResponse({ session })` auto-tags references and metadata; use `attachSessionToResponse` if you need to add a session after the fact.
 - `context.networks` entries accept either `ethers.Provider` or RPC URLs plus registry/router addresses.
-- `settleWithRouter` parses the authorization header, fetches the transaction receipt, enforces confirmations, and decodes `PaymentSettledV2` logs to prove the payment.
+- `context.networks[].relay` lets you specify `{ endpoint, apiKey }` so gasless payloads get forwarded to your relay before verification.
+- `settleWithRouter` parses the authorization header, forwards payloads to the relay when `txHash` is missing, fetches the transaction receipt, enforces confirmations, and decodes `PaymentSettledV2` logs to prove the payment.
 - `createFlexExpressMiddleware(flex, routes)` returns an Express-compatible handler that automatically serves 402 responses and verifies settlements before calling `next()`.
 - `buildSessionContext(input, { defaultAgent })` wraps `@bnbpay/sdk`’s helper so middleware callers can normalize `{ sessionId, agent? }` before hitting router session entry points.
 - `auditSessionReceipts(events, sessionId)` is re-exported so you can reconcile entire sessions (by replaying decoded `PaymentSettledV2` logs) without reaching for the SDK directly.
