@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ethers } from 'ethers';
 import { createFlexMiddleware, createFlexExpressMiddleware } from '../src/index';
-import { PaymentRegistry__factory } from '@bnbpay/sdk';
+import { PaymentRegistry__factory, calculateReferenceHash } from '@bnbpay/sdk';
 
 class StubProvider {
   private storedReceipt: any = null;
@@ -92,19 +92,20 @@ describe('@bnbpay/x402flex', () => {
     const token = ethers.ZeroAddress;
     const fee = 0n;
     const sessionId = ethers.hexlify(ethers.randomBytes(32));
-    const referenceData = `${option.reference}|session:${sessionId}|resource:${intent.resourceId}`;
-    const logData = iface.encodeEventLog('PaymentSettledV2', [
-      intent.paymentId,
-      payer,
-      merchant,
-      token,
-      BigInt(intent.amount),
-      fee,
-      option.schemeId,
-      referenceData,
-      intent.resourceId,
-      BigInt(Math.floor(Date.now() / 1000)),
-    ]);
+  const referenceData = `${option.reference}|session:${sessionId}|resource:${intent.resourceId}`;
+  const logData = iface.encodeEventLog('PaymentSettledV2', [
+    intent.paymentId,
+    payer,
+    merchant,
+    token,
+    BigInt(intent.amount),
+    fee,
+    option.schemeId,
+    referenceData,
+    calculateReferenceHash(referenceData),
+    intent.resourceId,
+    BigInt(Math.floor(Date.now() / 1000)),
+  ]);
 
     const txHash = ethers.hexlify(ethers.randomBytes(32));
     provider.setReceipt({
@@ -260,6 +261,7 @@ it('relays authorization when txHash missing', async () => {
     0n,
     option.schemeId,
     option.reference,
+    calculateReferenceHash(option.reference),
     intent.resourceId,
     BigInt(Math.floor(Date.now() / 1000)),
   ]);
