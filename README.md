@@ -82,13 +82,14 @@ if (settlement.session?.hasSessionTag) {
 
 ## API
 
-- `createFlexMiddleware(context)` → `{ buildFlexResponse, settleWithRouter, parseAuthorization, buildSessionContext, auditSessionReceipts, attachSessionToResponse }`
+- `createFlexMiddleware(context)` → `{ buildFlexResponse, settleWithRouter, parseAuthorization, buildSessionContext, canPay, auditSessionReceipts, attachSessionToResponse }`
 - `buildFlexResponse({ session })` auto-tags references and metadata; use `attachSessionToResponse` if you need to add a session after the fact.
 - `context.networks` entries accept either `ethers.Provider` or RPC URLs plus registry/router addresses.
 - `context.networks[].relay` lets you specify `{ endpoint, apiKey }` so gasless payloads get forwarded to your relay before verification.
 - `settleWithRouter` parses the authorization header, forwards payloads to the relay when `txHash` is missing, fetches the transaction receipt, enforces confirmations, and decodes `PaymentSettledV2` logs to prove the payment.
 - `createFlexExpressMiddleware(flex, routes)` returns an Express-compatible handler that automatically serves 402 responses and verifies settlements before calling `next()`.
 - `buildSessionContext(input, { defaultAgent })` wraps `@bnbpay/sdk`’s helper so middleware callers can normalize `{ sessionId, agent? }` before hitting router session entry points.
+- `canPay({ network, token, from, to, amount | amountWei })` runs the registry’s `canPay` preflight with the configured provider/registry; converts human amounts using token decimals when provided.
 - `auditSessionReceipts(events, sessionId)` is re-exported so you can reconcile entire sessions (by replaying decoded `PaymentSettledV2` logs) without reaching for the SDK directly.
 - `attachSessionToResponse(response, session)` rewrites every accept’s `reference` string with the `|session:...|resource:...` suffix (using the router intent’s resourceId) and stores the normalized session metadata under `accept.metadata.session` so clients know which SessionGuard context to apply.
 

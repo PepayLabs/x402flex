@@ -12,6 +12,7 @@ import {
   buildSessionContext as sdkBuildSessionContext,
   auditSessionReceipts,
   formatSessionReference,
+  canPay as sdkCanPay,
   type SessionContextInput,
 } from '@bnbpay/sdk';
 
@@ -80,12 +81,27 @@ export interface FlexMiddlewareHelpers {
   settleWithRouter: (params: SettleWithRouterParams) => Promise<FlexSettlementResult>;
   parseAuthorization: (auth: string | FlexAuthorization) => FlexAuthorization;
   buildSessionContext: typeof sdkBuildSessionContext;
+   /**
+    * Registry canPay preflight using configured network/provider.
+    * Amount is in human units unless `amountWei` is provided.
+    */
+  canPay: (params: FlexCanPayParams) => Promise<{ ok: boolean; reason: string }>;
   auditSessionReceipts: typeof auditSessionReceipts;
   attachSessionToResponse: (
     response: FlexResponse,
     session: SessionContextInput,
     options?: { defaultAgent?: string; autoTagReference?: boolean }
   ) => FlexResponse;
+}
+
+export interface FlexCanPayParams {
+  network: string;
+  token?: string;
+  from: string;
+  to: string;
+  amount?: string | number;
+  amountWei?: bigint;
+  decimals?: number;
 }
 
 export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddlewareHelpers {
@@ -310,6 +326,7 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
     },
     parseAuthorization,
     buildSessionContext: sdkBuildSessionContext,
+    canPay: (params) => canPayOnNetwork({ ...params, networks }),
     auditSessionReceipts,
     attachSessionToResponse: (
       response: FlexResponse,
@@ -336,6 +353,46 @@ function normalizeNetworks(networks: Record<string, FlexNetworkConfig>): Record<
     };
     return acc;
   }, {});
+}
+
+const ERC20_DECIMALS_ABI = ['function decimals() view returns (uint8)'];
+
+async function canPayOnNetwork(params: FlexCanPayParams & { networks?: Record<string, NormalizedNetworkConfig> }): Promise<{ ok: boolean; reason: string }> {
+  const networks = params.networks as Record<string, NormalizedNetworkConfig>;
+  const network = networks[params.network];
+  if (!network) {
+    throw new Error(`No network configuration found for ${params.network}`);
+  }
+  if (!network.registry) {
+    throw new Error(`Registry not configured for network ${params.network}`);
+  }
+
+  const token = params.token ? ethers.getAddress(params.token) : ethers.ZeroAddress;
+
+  let amountWei: bigint;
+  if (params.amountWei !== undefined) {
+    amountWei = params.amountWei;
+  } else if (params.amount !== undefined) {
+    if (token === ethers.ZeroAddress) {
+      amountWei = ethers.parseEther(params.amount.toString());
+    } else {
+      const decimals =
+        params.decimals ??
+        (await new ethers.Contract(token, ERC20_DECIMALS_ABI, network.provider).decimals().catch(() => 18));
+      amountWei = ethers.parseUnits(params.amount.toString(), decimals);
+    }
+  } else {
+    throw new Error('amount or amountWei is required');
+  }
+
+  return sdkCanPay({
+    provider: network.provider,
+    registryAddress: network.registry,
+    token,
+    from: ethers.getAddress(params.from),
+    to: ethers.getAddress(params.to),
+    amount: amountWei,
+  });
 }
 
 async function ensureAuthorizationTxHash(
