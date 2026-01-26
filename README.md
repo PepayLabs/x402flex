@@ -1,18 +1,20 @@
-# @bnbpay/x402flex
+# BNBPay x402flex
+
+Published as `@pepaylabs/x402flex` (recommended). `@bnbpay/x402flex` remains as a compatibility alias.
 
 Helper package for building HTTP 402 (x402 Flex) responses and verifying settlements on Node/Express servers. Wraps the shared SDK logic so merchants can generate `accepts[]` payloads and confirm router-settled payments in a few lines.
 
 ## Installation
 
 ```bash
-npm install @bnbpay/x402flex @bnbpay/sdk ethers
+npm install @pepaylabs/x402flex @pepaylabs/bnbpay ethers
 ```
 
 ## Quick Start
 
 ```ts
 import { ethers } from 'ethers';
-import { createFlexMiddleware, createFlexExpressMiddleware } from '@bnbpay/x402flex';
+import { createFlexMiddleware, createFlexExpressMiddleware } from '@pepaylabs/x402flex';
 
 const middleware = createFlexMiddleware({
   merchant: process.env.MERCHANT_ADDRESS!,
@@ -88,7 +90,7 @@ if (settlement.session?.hasSessionTag) {
 - `context.networks[].relay` lets you specify `{ endpoint, apiKey }` so gasless payloads get forwarded to your relay before verification.
 - `settleWithRouter` parses the authorization header, forwards payloads to the relay when `txHash` is missing, fetches the transaction receipt, enforces confirmations, and decodes `PaymentSettledV2` logs to prove the payment.
 - `createFlexExpressMiddleware(flex, routes)` returns an Express-compatible handler that automatically serves 402 responses and verifies settlements before calling `next()`.
-- `buildSessionContext(input, { defaultAgent })` wraps `@bnbpay/sdk`’s helper so middleware callers can normalize `{ sessionId, agent? }` before hitting router session entry points.
+- `buildSessionContext(input, { defaultAgent })` wraps `@pepaylabs/bnbpay`’s helper so middleware callers can normalize `{ sessionId, agent? }` before hitting router session entry points.
 - `canPay({ network, token, from, to, amount | amountWei })` runs the registry’s `canPay` preflight with the configured provider/registry; converts human amounts using token decimals when provided.
 - `auditSessionReceipts(events, sessionId)` is re-exported so you can reconcile entire sessions (by replaying decoded `PaymentSettledV2` logs) without reaching for the SDK directly.
 - `attachSessionToResponse(response, session)` rewrites every accept’s `reference` string with the `|session:...|resource:...` suffix (using the router intent’s resourceId) and stores the normalized session metadata under `accept.metadata.session` so clients know which SessionGuard context to apply.
