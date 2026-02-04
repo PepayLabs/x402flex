@@ -6,7 +6,7 @@ import {
   FlexResponseInput,
   FlexSettlementResult,
   PAYMENT_REGISTRY_ABI,
-  PaymentRegistry__factory,
+  X402FlexRegistry__factory,
   buildFlexResponse as sdkBuildFlexResponse,
   decodePaymentSettledEvent,
   buildSessionContext as sdkBuildSessionContext,
@@ -16,7 +16,7 @@ import {
   type SessionContextInput,
 } from '@bnbpay/sdk';
 
-const PAYMENT_REGISTRY_INTERFACE = PaymentRegistry__factory.createInterface();
+const PAYMENT_REGISTRY_INTERFACE = X402FlexRegistry__factory.createInterface();
 const PAYMENT_SETTLED_TOPIC = PAYMENT_REGISTRY_INTERFACE.getEvent('PaymentSettledV2').topicHash;
 
 const SCHEME_REGISTRY: Record<string, { id: string; type: string; sessionCapable: boolean }> = {

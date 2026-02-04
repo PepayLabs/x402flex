@@ -80,7 +80,7 @@ if (settlement.session?.hasSessionTag) {
 }
 ```
 
-> **Reminder:** When you mint SessionGuard grants for these flows, use the SDK’s builders so every payload includes the new `deadline`, `expiresAt`, and strictly increasing `nonce` fields. Sessions signed with legacy TTL-only structs are now rejected by `SessionStore`.
+> **Reminder:** When you mint SessionGuard grants for these flows, use the SDK’s builders so every payload includes the new `deadline`, `expiresAt`, and strictly increasing `nonce` fields. Sessions signed with legacy TTL-only structs are now rejected by `X402FlexSessionStore`.
 
 ## API
 

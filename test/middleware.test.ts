@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ethers } from 'ethers';
 import { createFlexMiddleware, createFlexExpressMiddleware } from '../src/index';
-import { PaymentRegistry__factory, calculateReferenceHash } from '@bnbpay/sdk';
+import { X402FlexRegistry__factory, calculateReferenceHash } from '@bnbpay/sdk';
 
 class StubProvider {
   private storedReceipt: any = null;
@@ -87,7 +87,7 @@ describe('@bnbpay/x402flex', () => {
     const intent = option.router?.intent;
     if (!intent) throw new Error('Missing router intent');
 
-    const iface = PaymentRegistry__factory.createInterface();
+    const iface = X402FlexRegistry__factory.createInterface();
     const payer = '0x000000000000000000000000000000000000face';
     const token = ethers.ZeroAddress;
     const fee = 0n;
@@ -251,7 +251,7 @@ it('relays authorization when txHash missing', async () => {
   const option = requirements.accepts[0];
   const intent = option.router?.intent!;
 
-  const iface = PaymentRegistry__factory.createInterface();
+  const iface = X402FlexRegistry__factory.createInterface();
   const logData = iface.encodeEventLog('PaymentSettledV2', [
     intent.paymentId,
     '0x000000000000000000000000000000000000face',
