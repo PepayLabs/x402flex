@@ -39,6 +39,7 @@ export interface ApiConfig {
   baseUrl: string;
   apiKey?: string;
   timeoutMs?: number;
+  fetchFn?: typeof fetch;
 }
 
 export interface SdkConfig {
@@ -139,3 +140,7 @@ export interface SubscriptionModuleConfig {
   signerOrProvider: ethers.Signer | ethers.Provider;
 }
 
+export interface ProtocolProfileRuntime {
+  configured: ProtocolProfile;
+  negotiated: Promise<Exclude<ProtocolProfile, 'auto'>>;
+}

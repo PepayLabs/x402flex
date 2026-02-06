@@ -1,0 +1,4 @@
+/**
+ * BNBPay SDK Types
+ */
+export {};

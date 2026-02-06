@@ -22,6 +22,10 @@ export interface HealthResponse {
   status: 'ok' | 'error';
 }
 
+export interface ApiCapabilitiesResponse {
+  protocolProfiles?: string[];
+}
+
 export interface Payment {
   paymentId: string;
   network: NetworkKey;
@@ -154,6 +158,7 @@ export interface BuildIntentResponse {
       payer: string;
       resourceId: string;
       referenceHash: string;
+      nonce: string;
     };
     intentHash: string;
   };
@@ -326,6 +331,7 @@ export interface RelayIntent {
   resourceId: string;
   payer?: string;
   referenceHash?: string;
+  nonce?: string;
 }
 
 export interface RelayWitness {
@@ -821,6 +827,7 @@ async function requestJson<T>(
 
 export interface ApiClient {
   health: () => Promise<HealthResponse>;
+  getCapabilities: () => Promise<ApiCapabilitiesResponse | undefined>;
   networks: () => Promise<NetworksResponse>;
   tokens: () => Promise<TokensResponse>;
   getNetworkByChainId: (chainId: number) => Promise<NetworkConfig | undefined>;
@@ -933,6 +940,19 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 
   return {
     health: () => request<HealthResponse>('/health', 'GET'),
+    getCapabilities: async () => {
+      try {
+        return await request<ApiCapabilitiesResponse>('/x402/capabilities', 'GET');
+      } catch (error) {
+        if (
+          error instanceof BnbpayApiError
+          && (error.statusCode === 404 || error.statusCode === 501)
+        ) {
+          return undefined;
+        }
+        throw error;
+      }
+    },
     networks: () => request<NetworksResponse>('/networks', 'GET'),
     tokens: () => request<TokensResponse>('/tokens', 'GET'),
     getNetworkByChainId: async (chainId: number) => {

@@ -1,0 +1,10 @@
+{
+  "mode": "minimal",
+  "network": "bnbTestnet",
+  "merchant": "0x000000000000000000000000000000000000dEaD",
+  "token": "0x0000000000000000000000000000000000000001",
+  "amount": "25.00",
+  "scheme": "permit2",
+  "referenceId": "order_fixture_001",
+  "deadlineSeconds": 900
+}

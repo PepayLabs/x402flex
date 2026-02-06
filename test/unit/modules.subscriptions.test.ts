@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-
 import {
   buildCreateSubscriptionTypedData,
   buildCreateSubscriptionDigest,
   buildCancelSubscriptionTypedData,
   buildCancelSubscriptionDigest,
 } from '../../src/modules/subscriptions/intents.js';
+import { X402FlexSubscriptions__factory } from '../../src/sdk/typechain/factories/X402FlexSubscriptions__factory.js';
 
 describe('subscription typed-data helpers', () => {
   const domain = {
@@ -46,5 +46,26 @@ describe('subscription typed-data helpers', () => {
     const digest = buildCancelSubscriptionDigest(cancelRequest, domain);
     expect(digest).toMatch(/^0x[0-9a-f]{64}$/);
   });
-});
 
+  it('exports canonical subscriptions factory with expected ABI surface', () => {
+    const abiNames = X402FlexSubscriptions__factory.abi
+      .filter((item): item is { type: string; name?: string } => item && typeof item === 'object')
+      .filter((item) => item.type === 'function')
+      .map((item) => item.name);
+
+    expect(abiNames).toContain('createSubscriptionWithSig');
+    expect(abiNames).toContain('computeSubId');
+    expect(abiNames).toContain('charge');
+  });
+
+  it('binds a typed subscriptions contract through the exported factory', () => {
+    const contract = X402FlexSubscriptions__factory.connect(
+      '0x0000000000000000000000000000000000000001',
+      null
+    );
+
+    expect(contract.target).toBe('0x0000000000000000000000000000000000000001');
+    expect(typeof contract.createSubscriptionWithSig).toBe('function');
+    expect(typeof contract.computeSubId).toBe('function');
+  });
+});

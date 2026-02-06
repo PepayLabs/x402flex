@@ -1,7 +1,7 @@
-# @pepaylabs/x402flex Implementation Guide
+# @pepay/x402flex Implementation Guide
 
 ## Package Overview
-**Name**: @pepaylabs/x402flex  
+**Name**: @pepay/x402flex  
 **Description**: Node/Express helper utilities for building x402 Flex responses and verifying router settlements server-side.  
 **Path**: packages/x402flex
 

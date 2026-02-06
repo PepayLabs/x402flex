@@ -1,25 +1,14 @@
-import { ethers } from 'ethers';
-
 import type {
   SubscriptionChargeRequest,
   SubscriptionCancelRequest,
   SubscriptionCreateRequest,
   SubscriptionModuleConfig,
 } from '../../core/types.js';
+import { X402FlexSubscriptions__factory } from '../../sdk/typechain/factories/X402FlexSubscriptions__factory.js';
+import type { X402FlexSubscriptions } from '../../sdk/typechain/X402FlexSubscriptions.js';
 
-const SUBSCRIPTIONS_ABI = [
-  'function domainSeparator() view returns (bytes32)',
-  'function getSubscription(bytes32 subId) view returns (tuple(address payer,address merchant,address token,uint96 amount,uint64 nextChargeAt,uint64 lastChargedAt,uint32 cadence,uint32 cancelWindow,uint16 maxPayments,uint16 paymentsMade,uint8 status,uint8 cadenceKind,uint8 pullMode,uint8 monthAnchorDay,bytes32 termsHash))',
-  'function isDue(bytes32 subId) view returns (bool due, uint64 nextChargeAt)',
-  'function computeSubId(address payer,address merchant,address token,uint256 amount,uint64 startAt,uint8 cadenceKind,uint32 cadence,uint32 cancelWindow,uint16 maxPayments,uint8 pullMode,bytes32 termsHash,bytes32 salt) view returns (bytes32)',
-  'function subscribeAndChargeWithSig((address payer,address merchant,address token,uint256 amount,uint64 startAt,uint8 cadenceKind,uint32 cadence,uint32 cancelWindow,uint16 maxPayments,uint8 pullMode,bytes32 termsHash,bytes32 salt,uint256 deadline) a, bytes payerSig) returns (bytes32)',
-  'function charge(bytes32 subId)',
-  'function cancel(bytes32 subId)',
-  'function cancelBySig(bytes32 subId, uint256 deadline, bytes sig)',
-] as const;
-
-function contract(config: SubscriptionModuleConfig) {
-  return new ethers.Contract(config.address, SUBSCRIPTIONS_ABI, config.signerOrProvider);
+function contract(config: SubscriptionModuleConfig): X402FlexSubscriptions {
+  return X402FlexSubscriptions__factory.connect(config.address, config.signerOrProvider);
 }
 
 export interface SubscribeAndChargeWithSigInput {
@@ -32,7 +21,7 @@ export async function subscribeAndChargeWithSig(
   input: SubscribeAndChargeWithSigInput
 ) {
   const c = contract(config);
-  return c.subscribeAndChargeWithSig(
+  return c.createSubscriptionWithSig(
     {
       payer: input.request.payer,
       merchant: input.request.merchant,
@@ -67,8 +56,16 @@ export function getSubscription(config: SubscriptionModuleConfig, subId: string)
   return contract(config).getSubscription(subId);
 }
 
-export function isSubscriptionDue(config: SubscriptionModuleConfig, subId: string) {
-  return contract(config).isDue(subId);
+export async function isSubscriptionDue(config: SubscriptionModuleConfig, subId: string) {
+  const subscription = await contract(config).getSubscription(subId);
+  const now = BigInt(Math.floor(Date.now() / 1000));
+  const due = subscription.status === 0n
+    && (subscription.maxPayments === 0n || subscription.paymentsMade < subscription.maxPayments)
+    && now >= subscription.nextChargeAt;
+  return {
+    due,
+    nextChargeAt: subscription.nextChargeAt,
+  };
 }
 
 export function computeSubscriptionId(config: SubscriptionModuleConfig, request: SubscriptionCreateRequest) {
@@ -87,4 +84,3 @@ export function computeSubscriptionId(config: SubscriptionModuleConfig, request:
     request.salt
   );
 }
-

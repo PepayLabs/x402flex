@@ -1,8 +1,8 @@
-# @pepaylabs/x402flex
+# @pepay/x402flex
 
 Canonical SDK for BNBPay + x402Flex.
 
-- Single package: `npm i @pepaylabs/x402flex`
+- Single package: `npm i @pepay/x402flex`
 - Works with `bnbpay-api` out of the box (`api` mode)
 - Supports direct contract execution (`contracts` mode)
 - Supports combined rollout (`hybrid` mode)
@@ -11,7 +11,7 @@ Canonical SDK for BNBPay + x402Flex.
 ## Quickstart
 
 ```ts
-import { createClient } from '@pepaylabs/x402flex';
+import { createClient } from '@pepay/x402flex';
 
 const sdk = createClient({
   mode: 'hybrid',
@@ -23,12 +23,12 @@ const sdk = createClient({
 
 ## Subpath exports
 
-- `@pepaylabs/x402flex/core`
-- `@pepaylabs/x402flex/evm`
-- `@pepaylabs/x402flex/api`
-- `@pepaylabs/x402flex/fetch`
-- `@pepaylabs/x402flex/axios`
-- `@pepaylabs/x402flex/express`
+- `@pepay/x402flex/core`
+- `@pepay/x402flex/evm`
+- `@pepay/x402flex/api`
+- `@pepay/x402flex/fetch`
+- `@pepay/x402flex/axios`
+- `@pepay/x402flex/express`
 
 ## Modes
 
@@ -44,3 +44,8 @@ const sdk = createClient({
 
 Runtime config overrides preset values.
 
+## License and Attribution
+
+Licensed under the MIT License.
+
+Copyright (c) 2025-2026 Pepay Labs, Inc.

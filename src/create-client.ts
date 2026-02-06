@@ -16,12 +16,17 @@ import {
   buildClaimSessionDigest,
 } from './sdk/index.js';
 
-import type { SdkConfig, ResolvedSdkConfig } from './core/types.js';
+import type {
+  SdkConfig,
+  ResolvedSdkConfig,
+  ProtocolProfileRuntime,
+  ProtocolProfile,
+} from './core/types.js';
 import { SdkError } from './core/errors.js';
 import { resolveSchemeId } from './core/schemes.js';
 import { resolveConfig } from './config/resolve.js';
 import { CHAIN_REGISTRY, findChain, toCaip2, toChainId } from './config/chains.js';
-import { resolveProtocolProfile } from './profiles/protocol-profiles.js';
+import { DEFAULT_PROTOCOL_PROFILE, resolveProtocolProfile } from './profiles/protocol-profiles.js';
 import { headersForProfile } from './profiles/headers.js';
 import { createContractsAdapter } from './contracts/adapter.js';
 import {
@@ -57,9 +62,14 @@ import { wrapAxiosWithPayment } from './client/wrap-axios.js';
 import { createFacilitatorClient } from './facilitator/client.js';
 import { createFlexMiddleware } from './flex-middleware.js';
 import { createBnbpayApiAdapter } from './api/adapter.js';
-
-type ApiClient = any;
-type BuildIntentRequest = any;
+import type {
+  ApiClient,
+  ApiCapabilitiesResponse,
+  BuildIntentRequest,
+  BuildIntentResponse,
+  CanPayResponse,
+  NetworkKey,
+} from './sdk/api-client.js';
 
 function warnPublicRpcUsage(config: ResolvedSdkConfig): void {
   if (!config.contracts) return;
@@ -106,6 +116,41 @@ function mapNetworkToApiKey(network?: string | number): string | undefined {
   return chain?.key ?? (typeof network === 'string' ? network : undefined);
 }
 
+function toApiNetworkKey(network?: string | number): NetworkKey | undefined {
+  const key = mapNetworkToApiKey(network);
+  if (key === 'bnb' || key === 'bnbTestnet') {
+    return key;
+  }
+  return undefined;
+}
+
+function normalizeCapabilities(
+  capabilities: ApiCapabilitiesResponse | undefined
+): { protocolProfiles?: string[] } | undefined {
+  if (!capabilities?.protocolProfiles || capabilities.protocolProfiles.length === 0) {
+    return undefined;
+  }
+  return { protocolProfiles: capabilities.protocolProfiles };
+}
+
+async function negotiateProtocolProfile(
+  configuredProfile: SdkConfig['protocolProfile'] | undefined,
+  api: ApiClient | undefined
+): Promise<Exclude<ProtocolProfile, 'auto'>> {
+  if (configuredProfile && configuredProfile !== 'auto') {
+    return configuredProfile;
+  }
+  if (!api) {
+    return DEFAULT_PROTOCOL_PROFILE;
+  }
+  try {
+    const capabilities = await api.getCapabilities();
+    return resolveProtocolProfile('auto', normalizeCapabilities(capabilities));
+  } catch {
+    return DEFAULT_PROTOCOL_PROFILE;
+  }
+}
+
 function localBuildIntent(
   request: BuildIntentRequest,
   networkResolver: (network?: string | number) => {
@@ -113,10 +158,10 @@ function localBuildIntent(
     caip2: string;
     contracts: { router?: string };
   }
-) {
+): BuildIntentResponse {
   const now = Math.floor(Date.now() / 1000);
-  if ((request as any).mode === 'minimal') {
-    const minimal = request as any;
+  if (request.mode === 'minimal') {
+    const minimal = request;
     const network = networkResolver(minimal.network);
     const decimals = minimal.decimals ?? 18;
     const amountWei = ethers.parseUnits(minimal.amount, decimals);
@@ -131,8 +176,8 @@ function localBuildIntent(
       payer: minimal.payer,
       salt: minimal.salt,
       deadlineSeconds: minimal.deadlineSeconds ?? 3600,
-    } as any);
-    const intentNonce = (intentResult.intent as any).nonce ?? ethers.ZeroHash;
+    });
+    const intentNonce = intentResult.intent.nonce;
     const schemeId = resolveSchemeId(mapMinimalSchemeToCanonical(minimal.scheme));
     return {
       input: {
@@ -214,22 +259,22 @@ function localBuildIntent(
     };
   }
 
-  const advanced = request as any;
+  const advanced = request;
   const network = networkResolver(advanced.chainId);
   const amountWei = BigInt(advanced.amountWei);
-    const intentResult = createFlexIntent({
-      merchant: advanced.merchant,
-      token: advanced.token,
-      amount: amountWei,
-      chainId: network.chainId,
+  const intentResult = createFlexIntent({
+    merchant: advanced.merchant,
+    token: advanced.token,
+    amount: amountWei,
+    chainId: network.chainId,
     referenceId: advanced.referenceId,
     scheme: advanced.schemeId,
     payer: advanced.payer,
-      sessionId: advanced.sessionId,
-      salt: advanced.salt,
-      deadline: advanced.deadline ?? now + 3600,
-    } as any);
-    const intentNonce = (intentResult.intent as any).nonce ?? ethers.ZeroHash;
+    sessionId: advanced.sessionId,
+    salt: advanced.salt,
+    deadline: advanced.deadline ?? now + 3600,
+  });
+  const intentNonce = intentResult.intent.nonce;
   return {
     input: {
       chainId: network.chainId,
@@ -310,17 +355,50 @@ function localBuildIntent(
   };
 }
 
+type ApiPaymentsListParams = Parameters<ApiClient['payments']['list']>[0];
+type ApiSessionsListParams = Parameters<ApiClient['sessions']['list']>[0];
+type ApiSessionsListByAgentParams = Parameters<ApiClient['sessions']['listByAgent']>[1];
+type ApiSessionsSpendsParams = Parameters<ApiClient['sessions']['spends']>[1];
+type ApiSessionsPaymentsParams = Parameters<ApiClient['sessions']['payments']>[1];
+
+type ApiRelayPaymentRequest = Parameters<ApiClient['relay']['payment']>[0];
+type ApiRelayPermit2BundleRequest = Parameters<ApiClient['relay']['permit2Bundle']>[0];
+type ApiRelaySessionOpenRequest = Parameters<ApiClient['relay']['sessionOpen']>[0];
+type ApiRelaySessionOpenClaimableRequest = Parameters<ApiClient['relay']['sessionOpenClaimable']>[0];
+type ApiRelaySessionClaimRequest = Parameters<ApiClient['relay']['sessionClaim']>[0];
+type ApiRelaySessionRevokeRequest = Parameters<ApiClient['relay']['sessionRevoke']>[0];
+
+type ApiInvoiceCreateRequest = Parameters<ApiClient['invoices']['create']>[0];
+type ApiConfirmPaymentRequest = Parameters<ApiClient['invoices']['confirmPayment']>[1];
+
+type ApiGiftcardCreateRequest = Parameters<ApiClient['giftcards']['create']>[0];
+type ApiGiftcardClaimRequest = Parameters<ApiClient['giftcards']['claim']>[0];
+type ApiGiftcardRedeemRequest = Parameters<ApiClient['giftcards']['redeem']>[0];
+type ApiGiftcardListParams = Parameters<ApiClient['giftcards']['list']>[0];
+
+type ContractSendRouterPaymentParams = Parameters<typeof sendContractRouterPayment>[1];
+type ContractPayWithPermit2Params = Parameters<typeof sendContractPermit2Payment>[1];
+type ContractPayWithEIP2612Params = Parameters<typeof sendContractEip2612Payment>[1];
+type ContractPayWithEIP3009Params = Parameters<typeof sendContractEip3009Payment>[1];
+type ContractSubscriptionRequest = Parameters<typeof createSubscriptionWithSig>[1];
+type ContractComputeSubIdRequest = Parameters<typeof computeSubId>[1];
+
 export function createClient(input: SdkConfig) {
   const resolved = resolveConfig(input);
   const api = resolved.api
     ? createBnbpayApiAdapter({
         baseUrl: resolved.api.baseUrl,
         apiKey: resolved.api.apiKey,
+        fetchFn: resolved.api.fetchFn,
       })
     : undefined;
   const contracts = resolved.contracts ? createContractsAdapter(resolved.contracts) : undefined;
   const protocolProfile = resolveProtocolProfile(resolved.protocolProfile);
   const headerPolicy = headersForProfile(protocolProfile);
+  const protocolProfileRuntime: ProtocolProfileRuntime = Object.freeze({
+    configured: resolved.protocolProfile,
+    negotiated: negotiateProtocolProfile(resolved.protocolProfile, api),
+  });
   warnPublicRpcUsage(resolved);
 
   const resolveContractNetwork = (network?: string | number) => {
@@ -366,31 +444,31 @@ export function createClient(input: SdkConfig) {
         decimals?: number;
       }) => {
         if (resolved.mode === 'api') {
-          const network = mapNetworkToApiKey(params.network);
+          const network = toApiNetworkKey(params.network) ?? 'bnbTestnet';
           return requireApi(api).payments.canPay({
-            network: (network ?? 'bnbTestnet') as any,
+            network,
             from: params.from,
             to: params.to,
             token: params.token,
             amount: params.amountWei
               ? ethers.formatUnits(params.amountWei, params.decimals ?? 18)
               : String(params.amount ?? '0'),
-          } as any);
+          });
         }
 
         if (resolved.mode === 'hybrid') {
-          const networkKey = mapNetworkToApiKey(params.network);
-          if (api && networkKey) {
+          const networkKey = toApiNetworkKey(params.network);
+          if (api && networkKey !== undefined) {
             try {
               return await api.payments.canPay({
-                network: networkKey as any,
+                network: networkKey,
                 from: params.from,
                 to: params.to,
                 token: params.token,
                 amount: params.amountWei
                   ? ethers.formatUnits(params.amountWei, params.decimals ?? 18)
                   : String(params.amount ?? '0'),
-              } as any);
+              });
             } catch {
               // fallback to direct contracts
             }
@@ -413,17 +491,21 @@ export function createClient(input: SdkConfig) {
           from: params.from,
           to: params.to,
           amount,
-        });
+        }) as Promise<CanPayResponse>;
       },
-      list: (params?: Record<string, unknown>) => requireApi(api).payments.list(params as any),
+      list: (params?: ApiPaymentsListParams) => requireApi(api).payments.list(params),
       get: (paymentId: string) => requireApi(api).payments.get(paymentId),
       status: (paymentId: string, network?: string | number) =>
-        requireApi(api).payments.status(paymentId, network ? ({ network: mapNetworkToApiKey(network) } as any) : undefined),
+        requireApi(api).payments.status(paymentId, network ? { network: toApiNetworkKey(network) } : undefined),
       buildIntent: async (request: BuildIntentRequest) => sdk.intents.build(request),
-      sendRouterPayment: (params: any) => sendContractRouterPayment(requireContracts(contracts), params),
-      payWithPermit2: (params: any) => sendContractPermit2Payment(requireContracts(contracts), params),
-      payWithEIP2612: (params: any) => sendContractEip2612Payment(requireContracts(contracts), params),
-      payWithEIP3009: (params: any) => sendContractEip3009Payment(requireContracts(contracts), params),
+      sendRouterPayment: (params: ContractSendRouterPaymentParams) =>
+        sendContractRouterPayment(requireContracts(contracts), params),
+      payWithPermit2: (params: ContractPayWithPermit2Params) =>
+        sendContractPermit2Payment(requireContracts(contracts), params),
+      payWithEIP2612: (params: ContractPayWithEIP2612Params) =>
+        sendContractEip2612Payment(requireContracts(contracts), params),
+      payWithEIP3009: (params: ContractPayWithEIP3009Params) =>
+        sendContractEip3009Payment(requireContracts(contracts), params),
     },
     x402: {
       buildRoute: buildFlexResponse,
@@ -449,11 +531,14 @@ export function createClient(input: SdkConfig) {
       formatSessionReference,
       parseSessionReference,
       auditSessionReceipts,
-      list: (params: any) => requireApi(api).sessions.list(params),
-      listByAgent: (address: string, params?: any) => requireApi(api).sessions.listByAgent(address, params),
+      list: (params: ApiSessionsListParams) => requireApi(api).sessions.list(params),
+      listByAgent: (address: string, params?: ApiSessionsListByAgentParams) =>
+        requireApi(api).sessions.listByAgent(address, params),
       get: (sessionId: string) => requireApi(api).sessions.get(sessionId),
-      spends: (sessionId: string, params?: any) => requireApi(api).sessions.spends(sessionId, params),
-      payments: (sessionId: string, params?: any) => requireApi(api).sessions.payments(sessionId, params),
+      spends: (sessionId: string, params?: ApiSessionsSpendsParams) =>
+        requireApi(api).sessions.spends(sessionId, params),
+      payments: (sessionId: string, params?: ApiSessionsPaymentsParams) =>
+        requireApi(api).sessions.payments(sessionId, params),
       getContractSession: (sessionId: string, network?: string | number) =>
         getSession(requireContracts(contracts), sessionId, network),
       getContractSessionState: (sessionId: string, network?: string | number) =>
@@ -466,7 +551,7 @@ export function createClient(input: SdkConfig) {
       buildCreateDigest: buildCreateSubscriptionDigest,
       buildCancelTypedData: buildCancelSubscriptionTypedData,
       buildCancelDigest: buildCancelSubscriptionDigest,
-      createWithSig: (request: any, network?: string | number) =>
+      createWithSig: (request: ContractSubscriptionRequest, network?: string | number) =>
         createSubscriptionWithSig(requireContracts(contracts), request, network),
       charge: (subId: string, network?: string | number) =>
         chargeExistingSubscription(requireContracts(contracts), subId, network),
@@ -476,34 +561,37 @@ export function createClient(input: SdkConfig) {
         getSubscriptionState(requireContracts(contracts), subId, network),
       isDue: (subId: string, network?: string | number) =>
         isDueSubscription(requireContracts(contracts), subId, network),
-      computeId: (request: any, network?: string | number) =>
+      computeId: (request: ContractComputeSubIdRequest, network?: string | number) =>
         computeSubId(requireContracts(contracts), request, network),
     },
     relay: {
-      payment: (payload: any) => requireApi(api).relay.payment(payload),
-      permit2Bundle: (payload: any) => requireApi(api).relay.permit2Bundle(payload),
-      sessionOpen: (payload: any) => requireApi(api).relay.sessionOpen(payload),
-      sessionOpenClaimable: (payload: any) => requireApi(api).relay.sessionOpenClaimable(payload),
-      sessionClaim: (payload: any) => requireApi(api).relay.sessionClaim(payload),
-      sessionRevoke: (payload: any) => requireApi(api).relay.sessionRevoke(payload),
+      payment: (payload: ApiRelayPaymentRequest) => requireApi(api).relay.payment(payload),
+      permit2Bundle: (payload: ApiRelayPermit2BundleRequest) => requireApi(api).relay.permit2Bundle(payload),
+      sessionOpen: (payload: ApiRelaySessionOpenRequest) => requireApi(api).relay.sessionOpen(payload),
+      sessionOpenClaimable: (payload: ApiRelaySessionOpenClaimableRequest) =>
+        requireApi(api).relay.sessionOpenClaimable(payload),
+      sessionClaim: (payload: ApiRelaySessionClaimRequest) => requireApi(api).relay.sessionClaim(payload),
+      sessionRevoke: (payload: ApiRelaySessionRevokeRequest) => requireApi(api).relay.sessionRevoke(payload),
     },
     invoices: {
-      create: (payload: any) => requireApi(api).invoices.create(payload),
+      create: (payload: ApiInvoiceCreateRequest) => requireApi(api).invoices.create(payload),
       get: (invoiceId: string) => requireApi(api).invoices.get(invoiceId),
       status: (invoiceId: string) => requireApi(api).invoices.status(invoiceId),
       cancel: (invoiceId: string) => requireApi(api).invoices.cancel(invoiceId),
-      confirmPayment: (invoiceId: string, payload: any) => requireApi(api).invoices.confirmPayment(invoiceId, payload),
+      confirmPayment: (invoiceId: string, payload: ApiConfirmPaymentRequest) =>
+        requireApi(api).invoices.confirmPayment(invoiceId, payload),
       streamSseUrl: (invoiceId: string) => requireApi(api).invoices.streamSseUrl(invoiceId),
       streamWsUrl: (invoiceId: string) => requireApi(api).invoices.streamWsUrl(invoiceId),
     },
     giftcards: {
-      create: (payload: any) => requireApi(api).giftcards.create(payload),
-      claim: (payload: any) => requireApi(api).giftcards.claim(payload),
-      redeem: (payload: any) => requireApi(api).giftcards.redeem(payload),
+      create: (payload: ApiGiftcardCreateRequest) => requireApi(api).giftcards.create(payload),
+      claim: (payload: ApiGiftcardClaimRequest) => requireApi(api).giftcards.claim(payload),
+      redeem: (payload: ApiGiftcardRedeemRequest) => requireApi(api).giftcards.redeem(payload),
       cancel: (cardId: string) => requireApi(api).giftcards.cancel(cardId),
       get: (cardId: string) => requireApi(api).giftcards.get(cardId),
-      list: (params?: any) => requireApi(api).giftcards.list(params),
+      list: (params?: ApiGiftcardListParams) => requireApi(api).giftcards.list(params),
     },
+    protocolProfileRuntime,
     api,
   };
 

@@ -24,7 +24,7 @@ const MERCHANT = '0x000000000000000000000000000000000000dEaD';
 const REGISTRY_ADDRESS = '0x000000000000000000000000000000000000f00d';
 const ROUTER_ADDRESS = '0x000000000000000000000000000000000000cafe';
 
-describe('@pepaylabs/x402flex', () => {
+describe('@pepay/x402flex', () => {
   it('applies scheme metadata and session defaults', () => {
     const middleware = createFlexMiddleware({
       merchant: MERCHANT,

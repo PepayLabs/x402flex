@@ -4,3 +4,4 @@
 export { X402FlexRouter__factory } from "./X402FlexRouter__factory";
 export { X402FlexRegistry__factory } from "./X402FlexRegistry__factory";
 export { X402FlexSessionStore__factory } from "./X402FlexSessionStore__factory";
+export { X402FlexSubscriptions__factory } from "./X402FlexSubscriptions__factory";

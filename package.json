@@ -1,5 +1,5 @@
 {
-  "name": "@pepaylabs/x402flex",
+  "name": "@pepay/x402flex",
   "version": "0.2.0",
   "private": false,
   "type": "module",
@@ -47,9 +47,31 @@
       "import": "./dist/esm/express/index.js",
       "require": "./dist/cjs/express/index.js"
     },
+    "./fastify": {
+      "types": "./dist/esm/fastify/index.d.ts",
+      "import": "./dist/esm/fastify/index.js",
+      "require": "./dist/cjs/fastify/index.js"
+    },
     "./package.json": "./package.json"
   },
   "description": "Canonical Pepay Labs x402Flex SDK for API-mode and direct-contract integrations.",
+  "license": "MIT",
+  "author": "Pepay Labs, Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PepayLabs/bnb-pay.git",
+    "directory": "packages/x402flex"
+  },
+  "homepage": "https://github.com/PepayLabs/bnb-pay/tree/main/packages/x402flex#readme",
+  "bugs": {
+    "url": "https://github.com/PepayLabs/bnb-pay/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
   "scripts": {
     "clean": "rm -rf dist",
     "build:esm": "tsc -p tsconfig.build.esm.json",

@@ -1,0 +1,7 @@
+{
+  "wallet": "0x0000000000000000000000000000000000000002",
+  "role": "payer",
+  "network": "bnbTestnet",
+  "page": 1,
+  "pageSize": 20
+}

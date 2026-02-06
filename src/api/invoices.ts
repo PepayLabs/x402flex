@@ -1,6 +1,9 @@
 import type { ApiClient } from './adapter.js';
 
-export function createInvoice(api: ApiClient, request: any) {
+type InvoiceCreateRequest = Parameters<ApiClient['invoices']['create']>[0];
+type InvoiceConfirmRequest = Parameters<ApiClient['invoices']['confirmPayment']>[1];
+
+export function createInvoice(api: ApiClient, request: InvoiceCreateRequest) {
   return api.invoices.create(request);
 }
 
@@ -19,7 +22,7 @@ export function cancelInvoice(api: ApiClient, invoiceId: string) {
 export function confirmInvoicePayment(
   api: ApiClient,
   invoiceId: string,
-  payload: any
+  payload: InvoiceConfirmRequest
 ) {
   return api.invoices.confirmPayment(invoiceId, payload);
 }

@@ -99,6 +99,7 @@ function normalizeApi(
     baseUrl,
     apiKey: api?.apiKey ?? envApi?.apiKey,
     timeoutMs: api?.timeoutMs ?? envApi?.timeoutMs,
+    fetchFn: api?.fetchFn ?? envApi?.fetchFn,
   };
 }
 
