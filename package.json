@@ -3,51 +3,69 @@
   "version": "0.2.0",
   "private": false,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
     },
     "./core": {
-      "types": "./dist/core/index.d.ts",
-      "default": "./dist/core/index.js"
+      "types": "./dist/esm/core/index.d.ts",
+      "import": "./dist/esm/core/index.js",
+      "require": "./dist/cjs/core/index.js"
     },
     "./evm": {
-      "types": "./dist/evm/index.d.ts",
-      "default": "./dist/evm/index.js"
+      "types": "./dist/esm/evm/index.d.ts",
+      "import": "./dist/esm/evm/index.js",
+      "require": "./dist/cjs/evm/index.js"
     },
     "./api": {
-      "types": "./dist/api/index.d.ts",
-      "default": "./dist/api/index.js"
+      "types": "./dist/esm/api/index.d.ts",
+      "import": "./dist/esm/api/index.js",
+      "require": "./dist/cjs/api/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/esm/sdk/index.d.ts",
+      "import": "./dist/esm/sdk/index.js",
+      "require": "./dist/cjs/sdk/index.js"
     },
     "./fetch": {
-      "types": "./dist/fetch/index.d.ts",
-      "default": "./dist/fetch/index.js"
+      "types": "./dist/esm/fetch/index.d.ts",
+      "import": "./dist/esm/fetch/index.js",
+      "require": "./dist/cjs/fetch/index.js"
     },
     "./axios": {
-      "types": "./dist/axios/index.d.ts",
-      "default": "./dist/axios/index.js"
+      "types": "./dist/esm/axios/index.d.ts",
+      "import": "./dist/esm/axios/index.js",
+      "require": "./dist/cjs/axios/index.js"
     },
     "./express": {
-      "types": "./dist/express/index.d.ts",
-      "default": "./dist/express/index.js"
+      "types": "./dist/esm/express/index.d.ts",
+      "import": "./dist/esm/express/index.js",
+      "require": "./dist/cjs/express/index.js"
     },
     "./package.json": "./package.json"
   },
   "description": "Canonical Pepay Labs x402Flex SDK for API-mode and direct-contract integrations.",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsc -w -p tsconfig.json",
-    "test": "vitest run"
+    "clean": "rm -rf dist",
+    "build:esm": "tsc -p tsconfig.build.esm.json",
+    "build:cjs": "tsc -p tsconfig.build.cjs.json",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "dev": "tsc -w -p tsconfig.build.esm.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@bnbpay/sdk": "file:../sdk-ts",
-    "ethers": "^6.15.0"
+    "ethers": "^6.15.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/qrcode": "^1.5.5",
     "@types/node": "^24.10.1",
     "typescript": "^5.9.2",
     "vitest": "^4.0.8"

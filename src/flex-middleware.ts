@@ -14,7 +14,7 @@ import {
   formatSessionReference,
   canPay as sdkCanPay,
   type SessionContextInput,
-} from '@bnbpay/sdk';
+} from './sdk/index.js';
 
 const PAYMENT_REGISTRY_INTERFACE = X402FlexRegistry__factory.createInterface();
 const PAYMENT_SETTLED_TOPIC = PAYMENT_REGISTRY_INTERFACE.getEvent('PaymentSettledV2').topicHash;
@@ -162,19 +162,23 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
     const authorization = params.authorization;
     const networkKey = params.network ?? authorization.network;
     const network = networks[networkKey];
+    const txHash = authorization.txHash;
 
     if (!network) {
       throw new Error(`No network configuration found for ${networkKey}`);
     }
+    if (!txHash) {
+      throw new Error('Authorization payload must include txHash');
+    }
 
-    const receipt = await network.provider.getTransactionReceipt(authorization.txHash);
+    const receipt = await network.provider.getTransactionReceipt(txHash);
     if (!receipt) {
       return {
         success: false,
         network: networkKey,
         error: 'TX_NOT_FOUND',
         proof: {
-          txHash: authorization.txHash,
+          txHash,
           network: networkKey,
           blockNumber: 0,
           confirmations: 0,
@@ -193,7 +197,7 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
         network: networkKey,
         error: 'TX_REVERTED',
         proof: {
-          txHash: authorization.txHash,
+          txHash,
           network: networkKey,
           blockNumber: receipt.blockNumber,
           confirmations,
@@ -208,7 +212,7 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
         network: networkKey,
         error: 'INSUFFICIENT_CONFIRMATIONS',
         proof: {
-          txHash: authorization.txHash,
+          txHash,
           network: networkKey,
           blockNumber: receipt.blockNumber,
           confirmations,
@@ -228,7 +232,7 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
         network: networkKey,
         error: 'PAYMENT_EVENT_NOT_FOUND',
         proof: {
-          txHash: authorization.txHash,
+          txHash,
           network: networkKey,
           blockNumber: receipt.blockNumber,
           confirmations,
@@ -238,9 +242,9 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
 
     const decoded = decodePaymentSettledEvent({
       data: eventLog.data,
-      topics: eventLog.topics,
+      topics: [...eventLog.topics],
       blockNumber: receipt.blockNumber,
-      transactionHash: authorization.txHash,
+      transactionHash: txHash,
     });
 
     if (params.paymentIntent && decoded.paymentId !== params.paymentIntent.paymentId) {
@@ -249,7 +253,7 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
         network: networkKey,
         error: 'PAYMENT_ID_MISMATCH',
         proof: {
-          txHash: authorization.txHash,
+          txHash,
           network: networkKey,
           blockNumber: receipt.blockNumber,
           confirmations,
@@ -267,7 +271,7 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
       reference: decoded.referenceData,
       session: decoded.session,
       proof: {
-        txHash: authorization.txHash,
+        txHash,
         network: networkKey,
         blockNumber: receipt.blockNumber,
         confirmations,
@@ -279,9 +283,7 @@ export function createFlexMiddleware(context: FlexMiddlewareContext): FlexMiddle
         merchant: decoded.merchant,
         payer: decoded.payer,
         token: decoded.token,
-        amount: typeof decoded.amount === 'bigint'
-          ? decoded.amount.toString()
-          : decoded.amount?.toString?.() ?? decoded.amount,
+        amount: decoded.amount.toString(),
       },
     };
   }

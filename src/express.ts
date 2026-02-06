@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import { FlexResponseInput, FlexSettlementResult } from '@bnbpay/sdk';
-import type { FlexMiddlewareHelpers } from './index.js';
+import { FlexResponseInput, FlexSettlementResult } from './sdk/index.js';
+import type { FlexMiddlewareHelpers } from './flex-middleware.js';
 
 export interface ExpressFlexRoute {
   buildResponse: (req: Request) => FlexResponseInput | Promise<FlexResponseInput>;

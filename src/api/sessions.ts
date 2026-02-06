@@ -1,6 +1,6 @@
-import type { ApiClient, SessionsParams } from '@bnbpay/sdk';
+import type { ApiClient } from './adapter.js';
 
-export function listSessions(api: ApiClient, params: SessionsParams) {
+export function listSessions(api: ApiClient, params: any) {
   return api.sessions.list(params as any);
 }
 
@@ -19,4 +19,3 @@ export function getSessionSpends(api: ApiClient, sessionId: string, params?: Rec
 export function getSessionPayments(api: ApiClient, sessionId: string, params?: Record<string, unknown>) {
   return api.sessions.payments(sessionId, params as any);
 }
-

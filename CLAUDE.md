@@ -1,17 +1,17 @@
-# @bnbpay/x402flex Implementation Guide
+# @pepaylabs/x402flex Implementation Guide
 
 ## Package Overview
-**Name**: @bnbpay/x402flex  
+**Name**: @pepaylabs/x402flex  
 **Description**: Node/Express helper utilities for building x402 Flex responses and verifying router settlements server-side.  
 **Path**: packages/x402flex
 
 ## Guardrails
-- Always source canonical builders (resource/payment IDs, scheme IDs) from `@bnbpay/sdk/src/x402.ts`. Do not fork logic here—import and wrap the SDK helpers.
+- Always source canonical builders (resource/payment IDs, scheme IDs) from local `src/sdk/x402.ts` and shared `src/core/*` modules. Do not fork logic across duplicate modules.
 - Require explicit network configuration (provider, registry, router, confirmations). Never assume defaults beyond basic RPC parsing.
 - Enforce deterministic references/identifiers by normalizing `referenceId` inputs via the SDK utilities.
 - Verification must parse `PaymentSettledV2` events and confirm confirmations ≥ configured thresholds. Never trust raw signatures alone.
-- Preserve SessionGuard telemetry: expose `reference` + `session` details from `@bnbpay/sdk.decodePaymentSettledEvent` so downstream middleware can tag dashboards and entitlements. Session contexts now only carry `{sessionId, agent?}`; removal of `usdDebit`/`scope` must cascade to every middleware response and metadata payload. When documenting how merchants mint grants, call out that `FlexSessionGrant` now signs `deadline`, `expiresAt`, and monotonic `nonce` fields—TTL durations are gone, and middleware should refuse payloads missing those fields.
-- Keep types exported from `@bnbpay/sdk` in sync; when they change, update this package plus docs referencing it.
+- Preserve SessionGuard telemetry: expose `reference` + `session` details from `decodePaymentSettledEvent` so downstream middleware can tag dashboards and entitlements. Session contexts now only carry `{sessionId, agent?}`; removal of `usdDebit`/`scope` must cascade to every middleware response and metadata payload. When documenting how merchants mint grants, call out that `FlexSessionGrant` now signs `deadline`, `expiresAt`, and monotonic `nonce` fields—TTL durations are gone, and middleware should refuse payloads missing those fields.
+- Keep canonical types exported from `src/sdk/*` and `src/core/*` in sync; when they change, update this package plus docs referencing it.
 - `canPay` helper must mirror registry guards (support, paused, recipient, amount, balance) without enforcing allowance; use SDK `canPay` internally and convert human amounts via token decimals when supplied.
 
 ## Testing

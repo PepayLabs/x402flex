@@ -1,4 +1,4 @@
-import { buildFlexResponse, type FlexAuthorization, type FlexResponse } from '@bnbpay/sdk';
+import { buildFlexResponse, type FlexAuthorization, type FlexResponse } from '../sdk/index.js';
 
 import {
   createFlexMiddleware,
@@ -163,4 +163,3 @@ export function createResourceServer(options: ResourceServerOptions): ResourceSe
     discovery: () => buildDiscoveryMetadata(listRoutes()),
   };
 }
-

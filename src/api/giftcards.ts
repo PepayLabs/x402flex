@@ -1,20 +1,14 @@
-import type {
-  ApiClient,
-  GiftCardClaimRequest,
-  GiftCardCreateRequest,
-  GiftCardListParams,
-  GiftCardRedeemRequest,
-} from '@bnbpay/sdk';
+import type { ApiClient } from './adapter.js';
 
-export function createGiftCard(api: ApiClient, request: GiftCardCreateRequest) {
+export function createGiftCard(api: ApiClient, request: any) {
   return api.giftcards.create(request);
 }
 
-export function claimGiftCard(api: ApiClient, request: GiftCardClaimRequest) {
+export function claimGiftCard(api: ApiClient, request: any) {
   return api.giftcards.claim(request);
 }
 
-export function redeemGiftCard(api: ApiClient, request: GiftCardRedeemRequest) {
+export function redeemGiftCard(api: ApiClient, request: any) {
   return api.giftcards.redeem(request);
 }
 
@@ -26,7 +20,6 @@ export function getGiftCard(api: ApiClient, cardId: string) {
   return api.giftcards.get(cardId);
 }
 
-export function listGiftCards(api: ApiClient, params?: GiftCardListParams) {
+export function listGiftCards(api: ApiClient, params?: any) {
   return api.giftcards.list(params as any);
 }
-

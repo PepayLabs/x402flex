@@ -3,7 +3,7 @@ import {
   parseSessionReference,
   normalizeReference,
   generateReferenceId,
-} from '@bnbpay/sdk';
+} from '../sdk/index.js';
 
 export {
   formatSessionReference,
@@ -11,4 +11,3 @@ export {
   normalizeReference,
   generateReferenceId,
 };
-

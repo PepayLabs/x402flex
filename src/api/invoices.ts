@@ -1,10 +1,6 @@
-import type {
-  ApiClient,
-  ConfirmPaymentRequest,
-  InvoiceCreateRequest,
-} from '@bnbpay/sdk';
+import type { ApiClient } from './adapter.js';
 
-export function createInvoice(api: ApiClient, request: InvoiceCreateRequest) {
+export function createInvoice(api: ApiClient, request: any) {
   return api.invoices.create(request);
 }
 
@@ -23,7 +19,7 @@ export function cancelInvoice(api: ApiClient, invoiceId: string) {
 export function confirmInvoicePayment(
   api: ApiClient,
   invoiceId: string,
-  payload: ConfirmPaymentRequest
+  payload: any
 ) {
   return api.invoices.confirmPayment(invoiceId, payload);
 }
@@ -35,4 +31,3 @@ export function invoiceStreamSseUrl(api: ApiClient, invoiceId: string) {
 export function invoiceStreamWsUrl(api: ApiClient, invoiceId: string) {
   return api.invoices.streamWsUrl(invoiceId);
 }
-

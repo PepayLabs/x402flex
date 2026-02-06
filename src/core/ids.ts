@@ -1,4 +1,3 @@
-import { derivePaymentId, deriveResourceId } from '@bnbpay/sdk';
+import { derivePaymentId, deriveResourceId } from '../sdk/index.js';
 
 export { derivePaymentId, deriveResourceId };
-

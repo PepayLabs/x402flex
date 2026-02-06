@@ -7,7 +7,11 @@ type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respo
 function toObjectHeaders(headers?: HeadersInit): Record<string, string> {
   if (!headers) return {};
   if (headers instanceof Headers) {
-    return Object.fromEntries(headers.entries());
+    const result: Record<string, string> = {};
+    headers.forEach((value, key) => {
+      result[key] = value;
+    });
+    return result;
   }
   if (Array.isArray(headers)) {
     return Object.fromEntries(headers);
@@ -25,7 +29,7 @@ async function parseChallenge(response: Response): Promise<PaymentTransportChall
   }
   return {
     status: response.status,
-    headers: Object.fromEntries(response.headers.entries()),
+    headers: toObjectHeaders(response.headers),
     body,
   };
 }
@@ -38,7 +42,7 @@ function buildTransportRequest(input: RequestInfo | URL, init?: RequestInit): Pa
       ? input
       : input.toString();
   const headers = {
-    ...(input instanceof Request ? Object.fromEntries(input.headers.entries()) : {}),
+    ...(input instanceof Request ? toObjectHeaders(input.headers) : {}),
     ...toObjectHeaders(init?.headers),
   };
   return {
@@ -73,4 +77,3 @@ export function wrapFetchWithPayment(fetchFn: FetchLike, client: PaymentClient):
     return response;
   };
 }
-

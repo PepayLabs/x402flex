@@ -1,12 +1,5 @@
-import {
-  createApiClient,
-  type ApiClient,
-  type ApiClientOptions,
-} from '@bnbpay/sdk';
+import { createApiClient, type ApiClient, type ApiClientOptions } from '../sdk/api-client.js';
 
-export function createBnbpayApiAdapter(options: ApiClientOptions): ApiClient {
-  return createApiClient(options);
-}
-
+export { createApiClient };
+export { createApiClient as createBnbpayApiAdapter };
 export type { ApiClient, ApiClientOptions };
-

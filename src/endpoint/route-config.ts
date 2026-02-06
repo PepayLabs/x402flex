@@ -1,4 +1,4 @@
-import type { FlexAcceptInput } from '@bnbpay/sdk';
+import type { FlexAcceptInput } from '../sdk/index.js';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -19,4 +19,3 @@ export interface RegisteredRoute extends RouteConfig {
 export function routeKey(method: string, path: string): string {
   return `${method.toUpperCase()} ${path}`;
 }
-

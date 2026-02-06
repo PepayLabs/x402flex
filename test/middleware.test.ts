@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ethers } from 'ethers';
 import { createFlexMiddleware, createFlexExpressMiddleware } from '../src/index';
-import { X402FlexRegistry__factory, calculateReferenceHash } from '@bnbpay/sdk';
+import { X402FlexRegistry__factory, calculateReferenceHash } from '../src/sdk/index.js';
 
 class StubProvider {
   private storedReceipt: any = null;
@@ -24,7 +24,7 @@ const MERCHANT = '0x000000000000000000000000000000000000dEaD';
 const REGISTRY_ADDRESS = '0x000000000000000000000000000000000000f00d';
 const ROUTER_ADDRESS = '0x000000000000000000000000000000000000cafe';
 
-describe('@bnbpay/x402flex', () => {
+describe('@pepaylabs/x402flex', () => {
   it('applies scheme metadata and session defaults', () => {
     const middleware = createFlexMiddleware({
       merchant: MERCHANT,

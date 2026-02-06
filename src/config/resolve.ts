@@ -7,6 +7,7 @@ import type {
   RuntimeEnvironment,
 } from '../core/types.js';
 import { sdkConfigError } from '../core/errors.js';
+import { DEFAULT_API_BASE_URL } from '../sdk/api-client.js';
 
 import { CHAIN_REGISTRY, findChain, toCaip2 } from './chains.js';
 import { buildPreset } from './presets.js';
@@ -86,10 +87,16 @@ function normalizeEnvironment(
   return explicit ?? inferred ?? 'development';
 }
 
-function normalizeApi(api: SdkConfig['api'] | undefined, envApi: SdkConfig['api'] | undefined) {
-  if (!api && !envApi) return undefined;
+function normalizeApi(
+  api: SdkConfig['api'] | undefined,
+  envApi: SdkConfig['api'] | undefined,
+  mode: ResolvedSdkConfig['mode']
+) {
+  const fallbackBaseUrl = mode === 'api' || mode === 'hybrid' ? DEFAULT_API_BASE_URL : undefined;
+  if (!api && !envApi && !fallbackBaseUrl) return undefined;
+  const baseUrl = api?.baseUrl ?? envApi?.baseUrl ?? fallbackBaseUrl ?? '';
   return {
-    baseUrl: api?.baseUrl ?? envApi?.baseUrl ?? '',
+    baseUrl,
     apiKey: api?.apiKey ?? envApi?.apiKey,
     timeoutMs: api?.timeoutMs ?? envApi?.timeoutMs,
   };
@@ -135,13 +142,14 @@ export function resolveConfig(input: SdkConfig): ResolvedSdkConfig {
   const contractsFromEnv = env.contracts;
   const contractsMergedPresetEnv = mergeContracts(contractsFromPreset, contractsFromEnv);
   const contracts = mergeContracts(contractsMergedPresetEnv, input.contracts);
+  const mode = input.mode ?? env.mode ?? 'api';
 
   const resolved: ResolvedSdkConfig = {
-    mode: input.mode ?? env.mode ?? 'api',
+    mode,
     preset: input.preset ?? presetResult.preset ?? 'none',
     protocolProfile: input.protocolProfile ?? 'auto',
     environment: normalizeEnvironment(input.environment, env.environment),
-    api: normalizeApi(input.api, env.api),
+    api: normalizeApi(input.api, env.api, mode),
     contracts,
   };
 
@@ -153,4 +161,3 @@ export function networkProvider(config: ContractNetworkConfig): ethers.JsonRpcPr
   const endpoint = config.rpc.http[0];
   return new ethers.JsonRpcProvider(endpoint, config.chainId);
 }
-
