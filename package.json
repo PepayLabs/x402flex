@@ -59,12 +59,11 @@
   "author": "Pepay Labs, Inc.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PepayLabs/bnb-pay.git",
-    "directory": "packages/x402flex"
+    "url": "git+https://github.com/PepayLabs/x402flex.git"
   },
-  "homepage": "https://github.com/PepayLabs/bnb-pay/tree/main/packages/x402flex#readme",
+  "homepage": "https://github.com/PepayLabs/x402flex#readme",
   "bugs": {
-    "url": "https://github.com/PepayLabs/bnb-pay/issues"
+    "url": "https://github.com/PepayLabs/x402flex/issues"
   },
   "files": [
     "dist",
