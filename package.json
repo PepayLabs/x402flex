@@ -76,9 +76,14 @@
     "build:esm": "tsc -p tsconfig.build.esm.json",
     "build:cjs": "tsc -p tsconfig.build.cjs.json",
     "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "prepack": "npm run build",
+    "check:pack": "npm pack --dry-run",
     "dev": "tsc -w -p tsconfig.build.esm.json",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "ethers": "^6.15.0",
