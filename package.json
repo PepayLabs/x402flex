@@ -79,7 +79,10 @@
     "prepack": "npm run build",
     "check:pack": "npm pack --dry-run",
     "dev": "tsc -w -p tsconfig.build.esm.json",
-    "test": "vitest run",
+    "test:unit": "vitest run test/unit --pool forks --maxWorkers 1 --reporter verbose",
+    "test:compat": "vitest run test/compatibility --pool forks --maxWorkers 1 --reporter verbose",
+    "test:contract": "vitest run test/contract --pool forks --maxWorkers 1 --reporter verbose",
+    "test": "npm run test:unit && npm run test:compat && npm run test:contract",
     "test:watch": "vitest"
   },
   "publishConfig": {

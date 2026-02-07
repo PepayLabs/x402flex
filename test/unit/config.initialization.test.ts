@@ -17,6 +17,33 @@ describe('config initialization', () => {
     expect(sdk.config.api?.baseUrl).toBe(DEFAULT_API_BASE_URL);
   });
 
+  it('uses env api baseUrl when runtime config is not set', () => {
+    const previous = process.env.BNBPAY_API_BASE_URL;
+    process.env.BNBPAY_API_BASE_URL = 'https://env.example.com';
+    try {
+      const sdk = createClient({ mode: 'api' as const });
+      expect(sdk.config.api?.baseUrl).toBe('https://env.example.com');
+    } finally {
+      if (previous === undefined) delete process.env.BNBPAY_API_BASE_URL;
+      else process.env.BNBPAY_API_BASE_URL = previous;
+    }
+  });
+
+  it('prefers runtime api baseUrl over env and defaults', () => {
+    const previous = process.env.BNBPAY_API_BASE_URL;
+    process.env.BNBPAY_API_BASE_URL = 'https://env.example.com';
+    try {
+      const sdk = createClient({
+        mode: 'api' as const,
+        api: { baseUrl: 'https://runtime.example.com' },
+      });
+      expect(sdk.config.api?.baseUrl).toBe('https://runtime.example.com');
+    } finally {
+      if (previous === undefined) delete process.env.BNBPAY_API_BASE_URL;
+      else process.env.BNBPAY_API_BASE_URL = previous;
+    }
+  });
+
   it('requires contract networks for contracts mode', () => {
     expect(() =>
       createClient({
